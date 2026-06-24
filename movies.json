@@ -13,7 +13,18 @@
     "rating": 8.4,
     "genre": "Animation",
     "trailer_url": "https://www.youtube.com/embed/tg52up16eq0",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Shameik Moore",
+      "Jake Johnson",
+      "Hailee Steinfeld",
+      "Mahershala Ali",
+      "Brian Tyree Henry",
+      "Lily Tomlin",
+      "Luna Lauren Vélez",
+      "Zoë Kravitz"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -28,7 +39,18 @@
     "poster": "/posters/the-legend-of-aang-the-last-airbender-37cbf1b3429e.jpg",
     "rating": 0,
     "genre": "Adventure",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Eric Nam",
+      "Dave Bautista",
+      "Jessica Matten",
+      "Román Zaragoza",
+      "Steven Yeun",
+      "Dionne Quan",
+      "Dee Bradley Baker",
+      "Freida Pinto"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -44,7 +66,18 @@
     "rating": 7.6,
     "genre": "Sci-Fi",
     "trailer_url": "https://www.youtube.com/embed/Ma1x7ikpid8",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Sam Worthington",
+      "Zoe Saldaña",
+      "Sigourney Weaver",
+      "Stephen Lang",
+      "Oona Chaplin",
+      "Jack Champion",
+      "Kate Winslet",
+      "Cliff Curtis"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -60,7 +93,18 @@
     "genre": "Action",
     "poster": "/posters/in-the-grey-895880117cc1.jpg",
     "trailer_url": "https://www.youtube.com/embed/nufP15iN4GE",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Henry Cavill",
+      "Jake Gyllenhaal",
+      "Eiza González",
+      "Carlos Bardem",
+      "Michael Vu",
+      "Fisher Stevens",
+      "Rosamund Pike",
+      "Mohammed Al Turki"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -73,7 +117,18 @@
     "genre": "Animation",
     "poster": "/posters/goat-5ebe36ecdf19.jpg",
     "trailer_url": "https://www.youtube.com/embed/kmY-rYS7yng",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Caleb McLaughlin",
+      "Gabrielle Union",
+      "Stephen Curry",
+      "Aaron Pierre",
+      "Nicola Coughlan",
+      "David Harbour",
+      "Nick Kroll",
+      "Jenifer Lewis"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -99,7 +154,14 @@
     "genre": "Animation",
     "poster": "/posters/my-adventures-with-superman-s03e01-naijaprey-com-e38cf82c7886.jpg",
     "trailer_url": "https://www.youtube.com/embed/nI9uUv6AdoY",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Alice Lee",
+      "Ishmel Sahid",
+      "Kiana Madeira",
+      "Jack Quaid"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -120,7 +182,14 @@
     "genre": "Animation",
     "poster": "/posters/my-adventures-with-superman-e38cf82c7886.jpg",
     "trailer_url": "https://www.youtube.com/embed/nI9uUv6AdoY",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Alice Lee",
+      "Ishmel Sahid",
+      "Kiana Madeira",
+      "Jack Quaid"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -133,7 +202,14 @@
     "genre": "Animation",
     "poster": "/posters/my-adventures-with-superman-e38cf82c7886.jpg",
     "trailer_url": "https://www.youtube.com/embed/nI9uUv6AdoY",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Alice Lee",
+      "Ishmel Sahid",
+      "Kiana Madeira",
+      "Jack Quaid"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,
@@ -169,7 +245,17 @@
     "rating": 3.9,
     "genre": "Drama",
     "poster": "/posters/superman-4464018ee1c8.jpg",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "N.T. Rama Rao",
+      "Jaya Prada",
+      "Jayamalini",
+      "Kaikala Satyanarayana",
+      "Pandari Bai",
+      "Allu Ramalingaiah",
+      "Kanta Rao"
+    ],
+    "cast_checked": true
   },
   {
     "id": "1782063636755-19700121_1555_69c58eb5454081919b40204a96712228.mp4",
@@ -180,7 +266,17 @@
     "rating": 3.9,
     "genre": "Drama",
     "poster": "/posters/superman-4464018ee1c8.jpg",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "N.T. Rama Rao",
+      "Jaya Prada",
+      "Jayamalini",
+      "Kaikala Satyanarayana",
+      "Pandari Bai",
+      "Allu Ramalingaiah",
+      "Kanta Rao"
+    ],
+    "cast_checked": true
   },
   {
     "id": "sample-movie-1.mp4",
@@ -191,7 +287,18 @@
     "rating": 5.8,
     "genre": "Documentary",
     "poster": "/posters/sunset-drive-b31e3014540a.jpg",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Jon Bokenkamp",
+      "Matt Kenagy",
+      "Valerian Bennett",
+      "Tony Carenzo",
+      "John Carpenter",
+      "Michael Wallis",
+      "Samuel Z. Arkoff",
+      "Bob Simpson"
+    ],
+    "cast_checked": true
   },
   {
     "id": "sample-movie-2.mp4",
@@ -202,7 +309,18 @@
     "rating": 5.9,
     "genre": "Mystery",
     "poster": "/posters/midnight-mystery-ee9aadc3e00b.jpg",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Betty Compson",
+      "Hugh Trevor",
+      "Lowell Sherman",
+      "Rita La Roy",
+      "Ivan Lebedeff",
+      "Raymond Hatton",
+      "Marcelle Corday",
+      "June Clyde"
+    ],
+    "cast_checked": true
   },
   {
     "id": "sample-movie-3.mp4",
@@ -212,7 +330,15 @@
     "year": 2017,
     "genre": "Music",
     "poster": "/posters/future-echoes-b9558013d710.jpg",
-    "trailer_checked": true
+    "trailer_checked": true,
+    "cast": [
+      "Mick Box",
+      "Bernie Shaw",
+      "Phil Lanzon",
+      "Lee Kerslake",
+      "Trevor Bolder"
+    ],
+    "cast_checked": true
   },
   {
     "id": null,

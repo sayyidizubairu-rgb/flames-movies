@@ -131,6 +131,10 @@ function getMoviePageHtml(movie) {
 
   const title = escapeHtml(movie.title || 'Untitled');
   const description = escapeHtml(movie.description || 'No description available.');
+  const cast = Array.isArray(movie.cast) ? movie.cast.filter(Boolean).slice(0, 8) : [];
+  const castHtml = cast.length
+    ? `<div class="cast-list">${cast.map((name) => `<span>${escapeHtml(name)}</span>`).join('')}</div>`
+    : '<p class="muted">Cast unavailable.</p>';
   const meta = [movie.year || 'Unknown', movie.genre || 'Unknown', movie.rating ? `Rating ${movie.rating}` : '', movie.size || ''].filter(Boolean).map(escapeHtml).join(' • ');
   const downloadUrl = escapeHtml(movie.download_url || movie.url || (movie.id ? `/download/${movie.id}` : '#'));
   const poster = movie.poster ? `style="background-image:url('${escapeHtml(movie.poster)}')"` : '';
@@ -155,10 +159,17 @@ function getMoviePageHtml(movie) {
           <div class="hero-pill">${escapeHtml(movie.quality || 'HD')}</div>
           <h1>${title}</h1>
           <p class="detail-meta">${meta}</p>
-          <p class="detail-desc">${description}</p>
           <a class="download-large" href="${downloadUrl}" target="_blank" rel="noopener noreferrer">Download movie</a>
         </div>
       </div>
+      <section class="info-section">
+        <h2>About</h2>
+        <p class="detail-desc">${description}</p>
+      </section>
+      <section class="info-section">
+        <h2>Cast</h2>
+        ${castHtml}
+      </section>
       <section class="trailer-section">
         <h2>Trailer</h2>
         ${trailer}
@@ -175,13 +186,13 @@ function getPublicPageStyles() {
     *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at top,rgba(255,77,45,.12),transparent 24%),linear-gradient(180deg,#090d14 0%,#020406 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     a{color:inherit}.page-header{padding:24px 28px;background:rgba(6,10,18,.8);border-bottom:1px solid rgba(255,255,255,.04)}.nav-inner{max-width:var(--max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand{display:flex;align-items:center;gap:14px;text-decoration:none}.brand-icon{width:46px;height:46px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#111}.brand-title{display:grid;line-height:1.1;font-weight:800}.brand-title span{font-size:.82rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}.nav-link,.back-link{color:#ffb8a8;text-decoration:none}
-    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:720px}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.trailer-section{padding:0 28px 28px}.trailer-section h2{margin:0 0 14px}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
+    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
     @media(max-width:760px){.detail-grid{grid-template-columns:1fr}.detail-poster{min-height:420px}.detail-wrap{padding:18px}}
   </style>`;
 }
 
 function needsTmdbMetadata(movie) {
-  return !movie.poster || movie.poster.includes('picsum.photos') || !movie.description || !movie.year || !movie.rating || (!movie.trailer_url && !movie.trailer_checked);
+  return !movie.poster || movie.poster.includes('picsum.photos') || !movie.description || !movie.year || !movie.rating || (!movie.trailer_url && !movie.trailer_checked) || (!movie.cast && !movie.cast_checked);
 }
 
 function refreshTmdbMetadataOnStartup() {
@@ -251,6 +262,8 @@ function ensureTmdbMetadata(movie) {
       if (!movie.genre && info.genre) { movie.genre = info.genre; updated = true; }
       if (info.trailer_url && !movie.trailer_url) { movie.trailer_url = info.trailer_url; updated = true; }
       if (!movie.trailer_checked) { movie.trailer_checked = true; updated = true; }
+      if (info.cast && !movie.cast) { movie.cast = info.cast; updated = true; }
+      if (!movie.cast_checked) { movie.cast_checked = true; updated = true; }
       if (updated) saveMovies();
     })
     .catch((e) => {
@@ -762,7 +775,9 @@ async function buildMeetdownloadMovie(url) {
       if (info.rating && !movie.rating) movie.rating = info.rating;
       if (info.genre && !movie.genre) movie.genre = info.genre;
       if (info.trailer_url) movie.trailer_url = info.trailer_url;
+      if (info.cast) movie.cast = info.cast;
       movie.trailer_checked = true;
+      movie.cast_checked = true;
     }
   } catch (e) {}
 
@@ -899,13 +914,15 @@ async function fetchTmdbInfo(title, year) {
             const rating = best.vote_average ? Number(best.vote_average.toFixed(1)) : undefined;
             const genre = Array.isArray(best.genre_ids) ? getTmdbGenreName(best.genre_ids) : undefined;
             const trailerUrl = await fetchTmdbTrailer(best.id, search.type);
+            const cast = await fetchTmdbCast(best.id, search.type);
             return {
               poster,
               description: overview,
               year: resultYear,
               rating,
               genre,
-              trailer_url: trailerUrl
+              trailer_url: trailerUrl,
+              cast
             };
           }
         }
@@ -940,6 +957,26 @@ async function fetchTmdbTrailer(tmdbId, type) {
     return best ? `https://www.youtube.com/embed/${best.key}` : null;
   } catch (e) {
     console.error('fetchTmdbTrailer error', e && e.toString());
+    return null;
+  }
+}
+
+async function fetchTmdbCast(tmdbId, type) {
+  if (!tmdbKey || !tmdbId) return null;
+  try {
+    const pathType = type === 'tv' ? 'tv' : 'movie';
+    const res = await axios.get(`https://api.themoviedb.org/3/${pathType}/${tmdbId}/credits`, {
+      params: { api_key: tmdbKey }
+    });
+    const cast = res && res.data && Array.isArray(res.data.cast) ? res.data.cast : [];
+    const names = cast
+      .filter((person) => person && person.name)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .slice(0, 8)
+      .map((person) => person.name);
+    return names.length ? names : null;
+  } catch (e) {
+    console.error('fetchTmdbCast error', e && e.toString());
     return null;
   }
 }
