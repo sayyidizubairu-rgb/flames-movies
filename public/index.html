@@ -85,7 +85,10 @@
     footer { text-align: center; color: var(--muted); padding: 24px 20px 40px; }
 
     @media(max-width: 640px) {
-      .hero-meta { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+      .hero-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+      .meta-card { padding: 12px 6px; border-radius: 12px; }
+      .meta-card strong { font-size: 1rem; margin-bottom: 4px; line-height: 1.15; }
+      .meta-card span { font-size: 0.66rem; line-height: 1.2; display: block; }
       header.page-header { padding: 18px 16px; }
       .nav-inner { gap: 10px; flex-wrap: nowrap; }
       .brand { gap: 10px; min-width: 0; }
