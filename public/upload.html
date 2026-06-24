@@ -8,7 +8,7 @@
     body{font-family:Inter,system-ui,Segoe UI,Arial;background:#081018;color:#e6eef6;margin:0;padding:20px}
     .card{max-width:720px;margin:36px auto;padding:18px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)}
     label{display:block;margin-top:12px;color:#cbd5e1}
-    input[type=text],textarea,input[type=file],input[type=url]{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    input[type=text],textarea,input[type=file],input[type=url]{width:100%;box-sizing:border-box;padding:10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
     .check-label{display:flex;align-items:flex-start;gap:10px}
     .check-label input{margin-top:3px}
     button{margin-top:14px;padding:10px 14px;border-radius:10px;border:none;background:#ff4d2d;color:#111;font-weight:700;cursor:pointer}
@@ -32,6 +32,8 @@
     <p class="muted">Upload a movie file you have the rights to distribute. The file will be stored on this server and added to the catalog.</p>
     <form id="uploadForm" method="post" action="/upload" enctype="multipart/form-data">
       <label>Title<input id="uploadTitle" type="text" name="title" placeholder="Movie title" required></label>
+      <label>Series name (optional)<input id="seriesTitle" type="text" name="series_title" placeholder="Use the same name for every episode"></label>
+      <label>Episode label (optional)<input id="episodeLabel" type="text" name="episode_label" placeholder="Episode 1, S01E02, Finale"></label>
       <label>Description<textarea id="uploadDescription" name="description" rows="3" placeholder="Short description"></textarea></label>
       <label>File<input id="uploadFile" type="file" name="file" accept="video/*"></label>
       <label>External URL (optional)<input id="uploadUrl" type="url" name="url" placeholder="https://example.com/movie.mp4"></label>

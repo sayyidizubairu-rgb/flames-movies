@@ -211,10 +211,23 @@ function getMoviePageHtml(movie) {
   const castHtml = cast.length
     ? `<div class="cast-list">${cast.map((name) => `<span>${escapeHtml(name)}</span>`).join('')}</div>`
     : '<p class="muted">Cast unavailable.</p>';
-  const meta = [movie.year || 'Unknown', movie.genre || 'Unknown', movie.rating ? `Rating ${movie.rating}` : '', movie.size || ''].filter(Boolean).map(escapeHtml).join(' • ');
+  const isSeries = Array.isArray(movie.episodes) && movie.episodes.length;
+  const episodeCount = isSeries ? `${movie.episodes.length} episode${movie.episodes.length === 1 ? '' : 's'}` : '';
+  const meta = [movie.year || 'Unknown', movie.genre || 'Unknown', movie.rating ? `Rating ${movie.rating}` : '', episodeCount || movie.size || ''].filter(Boolean).map(escapeHtml).join(' • ');
   const downloadUrl = escapeHtml(movie.download_url || movie.url || (movie.id ? `/download/${movie.id}` : '#'));
   const poster = movie.poster ? `style="background-image:url('${escapeHtml(movie.poster)}')"` : '';
   const trailer = movie.trailer_url ? `<iframe class="trailer-frame" src="${escapeHtml(movie.trailer_url)}" title="${title} trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>` : '<div class="trailer-missing">Trailer unavailable for this movie.</div>';
+  const episodesHtml = isSeries
+    ? `<section class="info-section" id="episodes"><h2>Episodes</h2><div class="episode-list">${movie.episodes.map((episode, index) => {
+        const episodeTitle = escapeHtml(episode.episode_label || episode.title || `Episode ${index + 1}`);
+        const episodeMeta = [episode.size, episode.quality].filter(Boolean).map(escapeHtml).join(' • ');
+        const episodeUrl = escapeHtml(episode.download_url || episode.url || (episode.id ? `/download/${episode.id}` : '#'));
+        return `<a class="episode-link" href="${episodeUrl}" target="_blank" rel="noopener noreferrer"><span>${episodeTitle}</span><small>${episodeMeta}</small></a>`;
+      }).join('')}</div></section>`
+    : '';
+  const primaryAction = isSeries
+    ? '<a class="download-large" href="#episodes">View episodes</a>'
+    : `<a class="download-large" href="${downloadUrl}" target="_blank" rel="noopener noreferrer">Download movie</a>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -235,9 +248,10 @@ function getMoviePageHtml(movie) {
           <div class="hero-pill">${escapeHtml(movie.quality || 'HD')}</div>
           <h1>${title}</h1>
           <p class="detail-meta">${meta}</p>
-          <a class="download-large" href="${downloadUrl}" target="_blank" rel="noopener noreferrer">Download movie</a>
+          ${primaryAction}
         </div>
       </div>
+      ${episodesHtml}
       <section class="info-section">
         <h2>About</h2>
         <p class="detail-desc">${description}</p>
@@ -262,7 +276,7 @@ function getPublicPageStyles() {
     *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at top,rgba(255,77,45,.12),transparent 24%),linear-gradient(180deg,#090d14 0%,#020406 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     a{color:inherit}.page-header{padding:24px 28px;background:rgba(6,10,18,.8);border-bottom:1px solid rgba(255,255,255,.04)}.nav-inner{max-width:var(--max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand{display:flex;align-items:center;gap:14px;text-decoration:none}.brand-icon{width:46px;height:46px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#111}.brand-title{display:grid;line-height:1.1;font-weight:800}.brand-title span{font-size:.82rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}.nav-link,.back-link{color:#ffb8a8;text-decoration:none}
-    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
+    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.episode-list{display:grid;gap:10px}.episode-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#fff;text-decoration:none;font-weight:800}.episode-link small{color:var(--muted);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
     @media(max-width:760px){.detail-grid{grid-template-columns:1fr}.detail-poster{min-height:420px}.detail-wrap{padding:18px}}
   </style>`;
 }
@@ -353,6 +367,8 @@ function ensureTmdbMetadata(movie) {
 function normalizeMovieData(movie) {
   const normalized = { ...movie };
   normalized.title = normalized.title || 'Untitled';
+  if (normalized.series_title) normalized.series_title = String(normalized.series_title).trim();
+  if (normalized.episode_label) normalized.episode_label = String(normalized.episode_label).trim();
   normalized.description = normalized.description || 'No description available.';
   normalized.year = normalized.year || parseYearFromTitle(normalized.title);
   normalized.quality = normalized.quality || parseQuality(normalized.title);
@@ -368,8 +384,90 @@ function normalizeMovieData(movie) {
   return normalized;
 }
 
+function getSeriesKey(title) {
+  return `series:${normalizeTitleForFilename(title || 'series')}`;
+}
+
+function groupMoviesForPublic(list) {
+  const grouped = [];
+  const seriesMap = new Map();
+
+  for (const movie of list) {
+    if (!movie.series_title) {
+      grouped.push(movie);
+      continue;
+    }
+
+    const key = getSeriesKey(movie.series_title);
+    let series = seriesMap.get(key);
+    if (!series) {
+      series = {
+        ...movie,
+        key,
+        title: movie.series_title,
+        series_title: movie.series_title,
+        is_series: true,
+        episodes: [],
+        search_only: true,
+        popular: false
+      };
+      seriesMap.set(key, series);
+      grouped.push(series);
+    }
+
+    series.episodes.push(movie);
+    series.search_only = series.search_only && Boolean(movie.search_only);
+    series.popular = series.popular || Boolean(movie.popular);
+    if (!series.poster && movie.poster) series.poster = movie.poster;
+    if ((!series.description || series.description === 'No description available.') && movie.description) series.description = movie.description;
+    if (!series.year && movie.year) series.year = movie.year;
+    if (!series.genre && movie.genre) series.genre = movie.genre;
+    if (!series.rating && movie.rating) series.rating = movie.rating;
+    if (!series.trailer_url && movie.trailer_url) series.trailer_url = movie.trailer_url;
+    if (!series.cast && movie.cast) series.cast = movie.cast;
+  }
+
+  for (const item of grouped) {
+    if (item.episodes) {
+      item.episodes = sortSeriesEpisodes(item.episodes);
+      item.download_url = item.episodes[0] && item.episodes[0].download_url;
+      item.size = `${item.episodes.length} episode${item.episodes.length === 1 ? '' : 's'}`;
+      item.tags = `${item.tags || ''} ${item.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''}`).join(' ')}`.trim();
+    }
+  }
+
+  return grouped;
+}
+
+function sortSeriesEpisodes(episodes) {
+  return [...episodes].sort((a, b) => {
+    const aNumber = parseEpisodeNumber(a.episode_label || a.title);
+    const bNumber = parseEpisodeNumber(b.episode_label || b.title);
+    if (aNumber !== bNumber) return aNumber - bNumber;
+    return String(a.episode_label || a.title || '').localeCompare(String(b.episode_label || b.title || ''));
+  });
+}
+
+function parseEpisodeNumber(value) {
+  const text = String(value || '');
+  const sxe = text.match(/s\d+\s*e(\d+)/i);
+  if (sxe) return Number(sxe[1]);
+  const episode = text.match(/\b(?:episode|ep|e)\s*0*(\d+)\b/i);
+  if (episode) return Number(episode[1]);
+  const number = text.match(/\b0*(\d+)\b/);
+  return number ? Number(number[1]) : Number.MAX_SAFE_INTEGER;
+}
+
 function isSearchOnlyValue(value) {
   return value === true || value === 'true' || value === '1' || value === 'on';
+}
+
+function applySeriesFields(movie, source = {}) {
+  const seriesTitle = String(source.series_title || source.seriesTitle || '').trim();
+  const episodeLabel = String(source.episode_label || source.episodeLabel || '').trim();
+  if (seriesTitle) movie.series_title = seriesTitle;
+  if (episodeLabel) movie.episode_label = episodeLabel;
+  return movie;
 }
 
 app.use(express.json());
@@ -423,8 +521,9 @@ app.get('/api/movies', async (req, res) => {
     if (pending.length) await Promise.all(pending);
   }
   const normalized = movies.map(normalizeMovieData);
-  if (!q) return res.json(includeHidden ? normalized : normalized.filter((m) => !m.search_only));
-  const results = normalized.filter((m) => {
+  const publicList = includeHidden ? normalized : groupMoviesForPublic(normalized);
+  if (!q) return res.json(includeHidden ? publicList : publicList.filter((m) => !m.search_only));
+  const results = publicList.filter((m) => {
     const hay = ((m.title || '') + ' ' + (m.description || '') + ' ' + (m.tags || '') + ' ' + (m.genre || '') + ' ' + (m.quality || '')).toLowerCase();
     return hay.includes(q);
   });
@@ -433,14 +532,20 @@ app.get('/api/movies', async (req, res) => {
 
 app.get('/movie', async (req, res) => {
   const key = req.query.key || '';
-  const movie = movies.find((item) => getMovieKey(item) === key);
+  const normalized = movies.map(normalizeMovieData);
+  const publicList = groupMoviesForPublic(normalized);
+  const movie = publicList.find((item) => item.key === key || getMovieKey(item) === key);
   if (!movie) return res.status(404).send(getMoviePageHtml(null));
 
-  if (tmdbKey && needsTmdbMetadata(movie)) {
-    await ensureTmdbMetadata(movie);
+  if (!movie.is_series && tmdbKey && needsTmdbMetadata(movie)) {
+    const sourceMovie = movies.find((item) => getMovieKey(item) === key);
+    if (sourceMovie) {
+      await ensureTmdbMetadata(sourceMovie);
+      return res.send(getMoviePageHtml(normalizeMovieData(sourceMovie)));
+    }
   }
 
-  res.send(getMoviePageHtml(normalizeMovieData(movie)));
+  res.send(getMoviePageHtml(movie));
 });
 
 app.get('/download/:filename', (req, res) => {
@@ -513,9 +618,9 @@ app.post('/upload', requireAdminApi, (req, res) => {
             const upJson = upRes.data;
             if (upJson.status === 'ok' && upJson.data) {
               const externalUrl = upJson.data.downloadPage || upJson.data.link || null;
-              const movie = { id: null, url: externalUrl, title, description, size, search_only: searchOnly, popular };
+              const movie = applySeriesFields({ id: null, url: externalUrl, title, description, size, search_only: searchOnly, popular }, req.body);
               try {
-                const poster = await fetchPoster(title, undefined);
+                const poster = await fetchPoster(movie.series_title || title, undefined);
                 if (poster) movie.poster = poster;
               } catch (e) {}
               movies.unshift(movie);
@@ -525,16 +630,16 @@ app.post('/upload', requireAdminApi, (req, res) => {
               return res.json({ ok: true, movie, uploadedTo: 'gofile' });
             } else {
               console.error('gofile upload failed', upJson);
-              const movie = { id, title, description, size, search_only: searchOnly, popular };
-              try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+              const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
+              try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
               movies.unshift(movie);
               await saveMovies();
               return res.json({ ok: true, movie, warning: 'gofile upload failed, stored locally' });
             }
           } catch (e) {
             console.error('gofile integration error', e);
-            const movie = { id, title, description, size, search_only: searchOnly, popular };
-            try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+            const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
+            try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
             movies.unshift(movie);
             await saveMovies();
             return res.json({ ok: true, movie, warning: 'gofile integration error, stored locally' });
@@ -542,8 +647,8 @@ app.post('/upload', requireAdminApi, (req, res) => {
         }
 
         // default: keep local file and save metadata
-        const movie = { id, title, description, size, search_only: searchOnly, popular };
-        try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+        const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
+        try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
         movies.unshift(movie);
         await saveMovies();
         return res.json({ ok: true, movie });
@@ -557,7 +662,9 @@ app.post('/upload', requireAdminApi, (req, res) => {
           title: req.body.title,
           description: req.body.description,
           search_only: req.body.search_only,
-          popular: req.body.popular
+          popular: req.body.popular,
+          series_title: req.body.series_title,
+          episode_label: req.body.episode_label
         });
         movies.unshift(movie);
         await saveMovies();
@@ -873,6 +980,7 @@ async function normalizeMeetdownloadEntry(entry) {
     if (entry.tags) movie.tags = entry.tags;
     if (isSearchOnlyValue(entry.search_only)) movie.search_only = true;
     if (isSearchOnlyValue(entry.popular)) movie.popular = true;
+    applySeriesFields(movie, entry);
   }
 
   return movie;
@@ -885,10 +993,11 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     if (overrides.description) movie.description = overrides.description;
     movie.search_only = isSearchOnlyValue(overrides.search_only);
     movie.popular = isSearchOnlyValue(overrides.popular);
+    applySeriesFields(movie, overrides);
     return movie;
   }
 
-  const movie = {
+  const movie = applySeriesFields({
     id: null,
     url,
     title: overrides.title || url,
@@ -896,9 +1005,9 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     size: '—',
     search_only: isSearchOnlyValue(overrides.search_only),
     popular: isSearchOnlyValue(overrides.popular)
-  };
+  }, overrides);
   try {
-    const poster = await fetchPoster(movie.title, undefined);
+    const poster = await fetchPoster(movie.series_title || movie.title, undefined);
     if (poster) movie.poster = poster;
   } catch (e) {}
   return movie;

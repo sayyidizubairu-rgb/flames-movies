@@ -7,6 +7,8 @@ const uploadFile = document.getElementById('uploadFile');
 const uploadUrl = document.getElementById('uploadUrl');
 const uploadTitle = document.getElementById('uploadTitle');
 const uploadDescription = document.getElementById('uploadDescription');
+const seriesTitle = document.getElementById('seriesTitle');
+const episodeLabel = document.getElementById('episodeLabel');
 const showOnHomepage = document.getElementById('showOnHomepage');
 const showInPopular = document.getElementById('showInPopular');
 
@@ -26,7 +28,7 @@ function renderMovies(list) {
       <div>
         <h3>${movie.title}</h3>
         <p>${movie.description}</p>
-        <small>${movie.search_only ? 'Search only' : 'Homepage'}${movie.popular ? ' • Popular' : ''}</small>
+        <small>${movie.series_title ? `Series: ${movie.series_title}${movie.episode_label ? ` • ${movie.episode_label}` : ''} • ` : ''}${movie.search_only ? 'Search only' : 'Homepage'}${movie.popular ? ' • Popular' : ''}</small>
       </div>
       <div class="movie-meta">
         <span>${movie.size}</span>
@@ -144,10 +146,14 @@ if (uploadForm) {
     const url = uploadUrl.value.trim();
     const title = uploadTitle.value.trim();
     const description = uploadDescription.value.trim();
+    const series = seriesTitle ? seriesTitle.value.trim() : '';
+    const episode = episodeLabel ? episodeLabel.value.trim() : '';
     if (file) form.append('file', file);
     if (url) form.append('url', url);
     if (title) form.append('title', title);
     if (description) form.append('description', description);
+    if (series) form.append('series_title', series);
+    if (episode) form.append('episode_label', episode);
     if (showOnHomepage && !showOnHomepage.checked) form.append('search_only', '1');
     if (showInPopular && showInPopular.checked) form.append('popular', '1');
     const res = await fetch('/upload', { method: 'POST', body: form });

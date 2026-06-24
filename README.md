@@ -89,6 +89,11 @@ Movies can be marked as search-only from the admin page. Search-only movies are
 hidden from the default homepage catalog but still appear when visitors search
 for a matching title, description, genre, quality, or tag.
 
+Series episodes can share one public poster/card. When uploading each episode,
+fill in the same `Series name` and set an `Episode label` such as `Episode 1` or
+`S01E02`. Public visitors see one series card, and the detail page lists the
+episode download links.
+
 ## Uploading your own movies
 
 As the admin, you can upload movies you own or have license to distribute:
