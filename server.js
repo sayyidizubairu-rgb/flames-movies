@@ -340,7 +340,8 @@ function ensureTmdbMetadata(movie) {
   const key = movie.url || movie.id || movie.title;
   if (tmdbPending.has(key)) return Promise.resolve();
   tmdbPending.add(key);
-  return fetchTmdbInfo(movie.title, movie.year)
+  const metadataTitle = movie.series_title || movie.title;
+  return fetchTmdbInfo(metadataTitle, movie.year, { preferType: movie.series_title ? 'tv' : 'movie' })
     .then((info) => {
       if (!info) return;
       let updated = false;
@@ -467,6 +468,25 @@ function applySeriesFields(movie, source = {}) {
   const episodeLabel = String(source.episode_label || source.episodeLabel || '').trim();
   if (seriesTitle) movie.series_title = seriesTitle;
   if (episodeLabel) movie.episode_label = episodeLabel;
+  return movie;
+}
+
+async function applyTmdbMetadata(movie, options = {}) {
+  const metadataTitle = movie.series_title || movie.title;
+  const info = await fetchTmdbInfo(metadataTitle, movie.year, {
+    preferType: movie.series_title ? 'tv' : 'movie'
+  });
+  if (!info) return null;
+
+  if (info.poster && (options.overwritePoster || !movie.poster)) movie.poster = info.poster;
+  if (info.description && (options.overwriteText || !movie.description)) movie.description = info.description;
+  if (info.year && (options.overwriteText || !movie.year)) movie.year = info.year;
+  if (info.rating && (options.overwriteText || !movie.rating)) movie.rating = info.rating;
+  if (info.genre && (options.overwriteText || !movie.genre)) movie.genre = info.genre;
+  if (info.trailer_url && (options.overwriteText || !movie.trailer_url)) movie.trailer_url = info.trailer_url;
+  if (info.cast && (options.overwriteText || !movie.cast)) movie.cast = info.cast;
+  movie.trailer_checked = true;
+  movie.cast_checked = true;
   return movie;
 }
 
@@ -619,10 +639,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
             if (upJson.status === 'ok' && upJson.data) {
               const externalUrl = upJson.data.downloadPage || upJson.data.link || null;
               const movie = applySeriesFields({ id: null, url: externalUrl, title, description, size, search_only: searchOnly, popular }, req.body);
-              try {
-                const poster = await fetchPoster(movie.series_title || title, undefined);
-                if (poster) movie.poster = poster;
-              } catch (e) {}
+              try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
               movies.unshift(movie);
               await saveMovies();
               // remove local file copy
@@ -631,7 +648,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
             } else {
               console.error('gofile upload failed', upJson);
               const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
-              try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+              try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
               movies.unshift(movie);
               await saveMovies();
               return res.json({ ok: true, movie, warning: 'gofile upload failed, stored locally' });
@@ -639,7 +656,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
           } catch (e) {
             console.error('gofile integration error', e);
             const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
-            try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+            try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
             movies.unshift(movie);
             await saveMovies();
             return res.json({ ok: true, movie, warning: 'gofile integration error, stored locally' });
@@ -648,7 +665,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
 
         // default: keep local file and save metadata
         const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
-        try { const poster = await fetchPoster(movie.series_title || title, undefined); if (poster) movie.poster = poster; } catch (e) {}
+        try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
         movies.unshift(movie);
         await saveMovies();
         return res.json({ ok: true, movie });
@@ -710,18 +727,8 @@ app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res)
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   try {
-    const info = await fetchTmdbInfo(movie.title, movie.year);
-    if (!info) return res.status(404).json({ ok: false, error: 'No TMDb match found' });
-
-    if (info.poster) movie.poster = info.poster;
-    if (info.description) movie.description = info.description;
-    if (info.year) movie.year = info.year;
-    if (info.rating) movie.rating = info.rating;
-    if (info.genre) movie.genre = info.genre;
-    if (info.trailer_url) movie.trailer_url = info.trailer_url;
-    if (info.cast) movie.cast = info.cast;
-    movie.trailer_checked = true;
-    movie.cast_checked = true;
+    const updated = await applyTmdbMetadata(movie, { overwritePoster: true, overwriteText: true });
+    if (!updated) return res.status(404).json({ ok: false, error: 'No TMDb match found' });
     await saveMovies();
     res.json({ ok: true, movie: normalizeMovieData(movie) });
   } catch (e) {
@@ -922,14 +929,7 @@ async function syncMeetdownloadOnce() {
     if (exists) continue;
 
     try {
-      const info = await fetchTmdbInfo(movie.title, movie.year);
-      if (info) {
-        if (info.poster) movie.poster = info.poster;
-        if (info.description && !movie.description) movie.description = info.description;
-        if (info.year && !movie.year) movie.year = info.year;
-        if (info.rating && !movie.rating) movie.rating = info.rating;
-        if (info.genre && !movie.genre) movie.genre = info.genre;
-      }
+      await applyTmdbMetadata(movie, { overwritePoster: Boolean(movie.series_title) });
     } catch (e) {
       // Keep catalog sync working even if metadata lookup fails.
     }
@@ -981,6 +981,9 @@ async function normalizeMeetdownloadEntry(entry) {
     if (isSearchOnlyValue(entry.search_only)) movie.search_only = true;
     if (isSearchOnlyValue(entry.popular)) movie.popular = true;
     applySeriesFields(movie, entry);
+    if (movie.series_title) {
+      try { await applyTmdbMetadata(movie, { overwritePoster: true, overwriteText: !entry.description }); } catch (e) {}
+    }
   }
 
   return movie;
@@ -994,6 +997,9 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     movie.search_only = isSearchOnlyValue(overrides.search_only);
     movie.popular = isSearchOnlyValue(overrides.popular);
     applySeriesFields(movie, overrides);
+    if (movie.series_title) {
+      try { await applyTmdbMetadata(movie, { overwritePoster: true, overwriteText: !overrides.description }); } catch (e) {}
+    }
     return movie;
   }
 
@@ -1006,10 +1012,7 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     search_only: isSearchOnlyValue(overrides.search_only),
     popular: isSearchOnlyValue(overrides.popular)
   }, overrides);
-  try {
-    const poster = await fetchPoster(movie.series_title || movie.title, undefined);
-    if (poster) movie.poster = poster;
-  } catch (e) {}
+  try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
   return movie;
 }
 
@@ -1126,13 +1129,16 @@ function titleFromMeetdownloadUrl(url) {
 }
 
 // --- TMDb poster lookup --------------------------------------------------
-async function fetchTmdbInfo(title, year) {
+async function fetchTmdbInfo(title, year, options = {}) {
   if (!tmdbKey || !title) return null;
   const baseQuery = normalizeTitleForSearch(title);
   if (!baseQuery) return null;
   const queries = buildTmdbSearchQueries(baseQuery);
 
-  const searches = [
+  const searches = options.preferType === 'tv' ? [
+    { path: 'search/tv', type: 'tv' },
+    { path: 'search/movie', type: 'movie' }
+  ] : [
     { path: 'search/movie', type: 'movie' },
     { path: 'search/tv', type: 'tv' }
   ];
@@ -1178,8 +1184,8 @@ async function fetchTmdbInfo(title, year) {
   return null;
 }
 
-async function fetchPoster(title, year) {
-  const info = await fetchTmdbInfo(title, year);
+async function fetchPoster(title, year, options = {}) {
+  const info = await fetchTmdbInfo(title, year, options);
   return info ? info.poster : null;
 }
 
