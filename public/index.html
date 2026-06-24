@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flamez Movies</title>
+  <meta name="description" content="Flamez Movies — a stylish movie download portal with posters, filters, and featured reels." />
+  <style>
+    :root {
+      --bg: #090d14;
+      --surface: rgba(255,255,255,0.06);
+      --surface-strong: rgba(255,255,255,0.1);
+      --muted: #9ca3af;
+      --text: #f8fafc;
+      --accent: #ff4d2d;
+      --accent-2: #ff8c42;
+      --border: rgba(255,255,255,0.08);
+      --radius: 24px;
+      --max-width: 1240px;
+      --shadow: 0 24px 60px rgba(0,0,0,0.25);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, rgba(255,77,45,0.12), transparent 24%), linear-gradient(180deg, #090d14 0%, #020406 100%); color: var(--text); font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { overflow-x: hidden; }
+    button, select, input { font: inherit; }
+    a { color: inherit; }
+
+    header.page-header { padding: 24px 28px; backdrop-filter: blur(18px); background: rgba(6, 10, 18, 0.8); border-bottom: 1px solid rgba(255,255,255,0.04); position: sticky; top: 0; z-index: 50; }
+    .nav-inner { max-width: var(--max-width); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-icon { width: 46px; height: 46px; border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: grid; place-items: center; font-weight: 800; color: #111; }
+    .brand-title { display: grid; line-height: 1.1; }
+    .brand-title span { font-size: 0.82rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-links { display: flex; gap: 14px; align-items: center; }
+    .nav-link { padding: 10px 14px; border-radius: 999px; transition: background 180ms ease; }
+    .nav-link:hover { background: rgba(255,255,255,0.05); }
+    .nav-cta { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #111; }
+
+    .hero { max-width: var(--max-width); margin: 0 auto; padding: 44px 28px 26px; }
+    .hero-top { display: grid; gap: 20px; }
+    .hero-pill { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 999px; background: rgba(255,77,45,0.12); color: #ffb8a8; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+    .hero-title { margin: 0; font-size: clamp(3rem, 5vw, 4.4rem); line-height: 0.98; letter-spacing: -0.06em; }
+    .hero-copy { margin: 0; max-width: 760px; color: #cbd5e1; font-size: 1.05rem; line-height: 1.8; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+    .button { border: none; border-radius: 999px; padding: 14px 22px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 10px; transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease; }
+    .button-primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #111; }
+    .button-secondary { background: rgba(255,255,255,0.08); color: var(--text); }
+    .button:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(255,77,45,0.2); }
+
+    .hero-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+    .meta-card { padding: 24px; border-radius: 22px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); text-align: center; }
+    .meta-card strong { display: block; font-size: 1.8rem; margin-bottom: 10px; }
+    .meta-card span { color: var(--muted); font-size: 0.95rem; }
+
+    .toolbar { max-width: var(--max-width); margin: 0 auto; padding: 0 28px; }
+    .toolbar-grid { display: grid; gap: 18px; margin-top: 32px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+    .search { flex: 1 1 260px; min-width: 220px; padding: 14px 18px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; color: var(--text); }
+    .filter-select { min-width: 160px; padding: 14px 16px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: var(--text); }
+    .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+    .chip { padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: var(--muted); cursor: pointer; transition: background 180ms ease, color 180ms ease; }
+    .chip.active { background: linear-gradient(90deg, rgba(255,77,45,0.18), rgba(255,140,66,0.12)); color: #fff; border-color: rgba(255,255,255,0.12); }
+
+    .grid { max-width: var(--max-width); margin: 30px auto 42px; padding: 0 28px; display: grid; gap: 24px; grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    @media(min-width: 760px) { .hero-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media(min-width: 1080px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; transition: transform 180ms ease, box-shadow 180ms ease; }
+    .card:hover { transform: translateY(-8px); box-shadow: var(--shadow); }
+    .poster-link { display: block; text-decoration: none; }
+    .poster { position: relative; width: 100%; padding-bottom: 145%; background-color: #0f172a; background-size: cover; background-position: center; }
+    .poster::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.72)); }
+    .poster.no-poster::before { content: 'Poster unavailable'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.95rem; }
+    .poster-label { position: absolute; left: 18px; top: 18px; padding: 8px 12px; border-radius: 999px; background: rgba(0,0,0,0.5); color: #fff; font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+    .title { margin: 0; font-size: 1.2rem; line-height: 1.2; font-weight: 800; }
+    .sub { color: var(--muted); font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .desc { margin: 0; color: #d8dee8; font-size: 0.95rem; line-height: 1.7; min-height: 70px; }
+    .footer-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #111; text-decoration: none; font-weight: 700; }
+    .downloads-label { color: var(--muted); font-size: 0.88rem; }
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+    footer { text-align: center; color: var(--muted); padding: 24px 20px 40px; }
+
+    @media(max-width: 640px) {
+      .hero-meta { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+      .filter-row { flex-direction: column; align-items: stretch; }
+      .search, .filter-select { width: 100%; }
+      .hero-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <div class="nav-inner">
+      <div class="brand">
+        <div class="brand-icon">FZ</div>
+        <div class="brand-title">
+          <div style="font-weight:800;font-size:1rem;">Flamez Movies</div>
+          <span>Movie downloads, reimagined</span>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="#grid">Browse</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-top">
+      <div class="hero-pill">Download hub</div>
+    </div>
+    <div class="hero-actions">
+      <a class="button button-primary" href="#grid">Browse catalog</a>
+    </div>
+    <div class="hero-meta">
+      <div class="meta-card"><strong>+520</strong><span>Available titles</span></div>
+      <div class="meta-card"><strong>Fast access</strong><span>Direct download links</span></div>
+      <div class="meta-card"><strong>Poster-rich</strong><span>High-impact cards</span></div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="toolbar-grid">
+      <div class="filter-row">
+        <input id="search" class="search" placeholder="Search movies, genres, or quality" aria-label="Search movies" />
+        <select id="genreFilter" class="filter-select" aria-label="Filter by genre"><option value="">All genres</option></select>
+        <select id="sortSelect" class="filter-select" aria-label="Sort movies"><option value="latest">Latest</option><option value="rating">Top Rated</option><option value="title">Title (A-Z)</option></select>
+      </div>
+      <div class="chips" id="qualityChips"></div>
+    </div>
+  </section>
+
+  <main>
+    <section class="grid" id="grid"></section>
+  </main>
+
+  <footer>
+    © 2026 Flamez Movies — a sleek movie download portal.
+  </footer>
+
+  <script>
+    const grid = document.getElementById('grid');
+    const searchInput = document.getElementById('search');
+    const genreFilter = document.getElementById('genreFilter');
+    const sortSelect = document.getElementById('sortSelect');
+    const qualityChips = document.getElementById('qualityChips');
+
+    let movies = [];
+    let query = '';
+    let activeGenre = '';
+    let activeQuality = '';
+    let sortBy = 'latest';
+
+    async function loadMovies() {
+      try {
+        const response = await fetch('/api/movies');
+        movies = await response.json();
+      } catch (error) {
+        movies = [];
+      }
+      setupFilters();
+      render();
+    }
+
+    function setupFilters() {
+      const genres = Array.from(new Set(movies.map(m => m.genre).filter(Boolean))).sort();
+      genreFilter.innerHTML = '<option value="">All genres</option>' + genres.map(genre => `<option value="${genre}">${genre}</option>`).join('');
+      const qualities = ['All', '4K', '1080P', '720P', 'HD'];
+      qualityChips.innerHTML = qualities.map(q => `<div class="chip${q === 'All' ? ' active' : ''}" data-quality="${q}">${q}</div>`).join('');
+      qualityChips.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          activeQuality = chip.dataset.quality === 'All' ? '' : chip.dataset.quality;
+          qualityChips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+          render();
+        });
+      });
+    }
+
+    searchInput.addEventListener('input', (event) => {
+      query = event.target.value.trim().toLowerCase();
+      render();
+    });
+
+    genreFilter.addEventListener('change', (event) => {
+      activeGenre = event.target.value;
+      render();
+    });
+
+    sortSelect.addEventListener('change', (event) => {
+      sortBy = event.target.value;
+      render();
+    });
+
+    function render() {
+      let list = [...movies];
+      if (query) {
+        list = list.filter(movie => {
+          const content = `${movie.title || ''} ${movie.description || ''} ${movie.genre || ''} ${movie.quality || ''}`.toLowerCase();
+          return content.includes(query);
+        });
+      }
+      if (activeGenre) list = list.filter(movie => movie.genre === activeGenre);
+      if (activeQuality) list = list.filter(movie => (movie.quality || '').toUpperCase() === activeQuality);
+      if (sortBy === 'latest') list.sort((a, b) => (b.year || 0) - (a.year || 0));
+      if (sortBy === 'rating') list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      if (sortBy === 'title') list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+      if (!list.length) {
+        grid.innerHTML = '<div class="empty-state">No movies match your search. Try a broader filter or clear the search.</div>';
+        return;
+      }
+
+      grid.innerHTML = list.map(movie => {
+        const title = movie.title || 'Untitled';
+        const description = movie.description || 'No description available.';
+        const sub = [movie.year || 'Unknown', movie.genre || 'Unknown', movie.rating ? `⭐ ${movie.rating}` : ''].filter(Boolean).join(' • ');
+        const detailHref = `/movie?key=${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}`;
+        const downloads = movie.downloads ? formatNumber(movie.downloads) : '—';
+        const posterStyle = movie.poster ? ` style="background-image:url('${escapeCssUrl(movie.poster)}')"` : '';
+        const posterClass = movie.poster ? 'poster' : 'poster no-poster';
+        const safeDetailHref = escapeAttr(detailHref);
+        return `
+          <article class="card">
+            <a class="poster-link" href="${safeDetailHref}" aria-label="Open ${escapeHtml(title)}">
+              <div class="${posterClass}"${posterStyle}></div>
+            </a>
+            <div class="body">
+              <div class="meta"><div><h2 class="title">${escapeHtml(title)}</h2><p class="sub">${escapeHtml(sub)}</p></div><div class="poster-label">${escapeHtml(movie.quality || 'HD')}</div></div>
+              <p class="desc">${escapeHtml(description).slice(0, 140)}</p>
+              <div class="footer-row"><a class="download" href="${safeDetailHref}">Download</a><span class="downloads-label">${downloads} downloads</span></div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+    }
+
+    function escapeAttr(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+    }
+
+    function escapeCssUrl(value) {
+      return String(value || '').replace(/['"\\()]/g, char => encodeURIComponent(char));
+    }
+
+    function formatNumber(number) {
+      if (!number) return '0';
+      if (number >= 1000000) return (number / 1000000).toFixed(1) + 'M';
+      if (number >= 1000) return (number / 1000).toFixed(1) + 'K';
+      return String(number);
+    }
+
+    loadMovies();
+  </script>
+</body>
+</html>
