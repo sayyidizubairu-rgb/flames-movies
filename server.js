@@ -5,11 +5,13 @@ const crypto = require('crypto');
 const multer = require('multer');
 const FormData = require('form-data');
 const axios = require('axios');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || null;
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const DATABASE_URL = process.env.DATABASE_URL || null;
 const moviesDir = path.join(__dirname, 'movies');
 const postersDir = path.join(__dirname, 'public', 'posters');
 const tmdbKey = process.env.TMDB_API_KEY || null;
@@ -31,8 +33,10 @@ for (const dir of [moviesDir, postersDir]) {
 
 const moviesFile = path.join(__dirname, 'movies.json');
 let movies = [];
+let dbPool = null;
+let dbSaveQueue = Promise.resolve();
 
-function loadMovies() {
+function loadMoviesFromFile() {
   try {
     const raw = fs.readFileSync(moviesFile, 'utf8');
     movies = JSON.parse(raw);
@@ -42,10 +46,82 @@ function loadMovies() {
 }
 
 function saveMovies() {
+  if (dbPool) {
+    return queueMoviesDbSave();
+  }
+
   try {
     fs.writeFileSync(moviesFile, JSON.stringify(movies, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to save movies.json', err);
+  }
+  return Promise.resolve();
+}
+
+async function initializeStorage() {
+  if (!DATABASE_URL) {
+    loadMoviesFromFile();
+    return;
+  }
+
+  dbPool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+  });
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS movies_catalog (
+      key TEXT PRIMARY KEY,
+      position INTEGER NOT NULL DEFAULT 0,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const result = await dbPool.query('SELECT data FROM movies_catalog ORDER BY position ASC, updated_at DESC');
+  if (result.rows.length) {
+    movies = result.rows.map((row) => row.data);
+    console.log(`Loaded ${movies.length} movies from database`);
+    return;
+  }
+
+  loadMoviesFromFile();
+  if (movies.length) {
+    await saveMoviesToDb(movies);
+    console.log(`Seeded database with ${movies.length} movies from movies.json`);
+  }
+}
+
+function queueMoviesDbSave() {
+  const snapshot = movies.map((movie) => ({ ...movie }));
+  dbSaveQueue = dbSaveQueue
+    .then(() => saveMoviesToDb(snapshot))
+    .catch((err) => {
+      console.error('Failed to save movies to database', err);
+    });
+  return dbSaveQueue;
+}
+
+async function saveMoviesToDb(snapshot) {
+  if (!dbPool) return;
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM movies_catalog');
+    for (let index = 0; index < snapshot.length; index++) {
+      const movie = snapshot[index];
+      await client.query(
+        `INSERT INTO movies_catalog (key, position, data, updated_at)
+         VALUES ($1, $2, $3::jsonb, NOW())`,
+        [getMovieKey(movie), index, JSON.stringify(movie)]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -296,9 +372,6 @@ function isSearchOnlyValue(value) {
   return value === true || value === 'true' || value === '1' || value === 'on';
 }
 
-loadMovies();
-refreshTmdbMetadataOnStartup();
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -306,7 +379,8 @@ app.get('/health', (req, res) => {
   res.json({
     ok: true,
     tmdb_configured: Boolean(tmdbKey),
-    admin_configured: Boolean(ADMIN_PASSWORD)
+    admin_configured: Boolean(ADMIN_PASSWORD),
+    database_configured: Boolean(dbPool)
   });
 });
 
@@ -445,7 +519,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
                 if (poster) movie.poster = poster;
               } catch (e) {}
               movies.unshift(movie);
-              saveMovies();
+              await saveMovies();
               // remove local file copy
               try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
               return res.json({ ok: true, movie, uploadedTo: 'gofile' });
@@ -454,7 +528,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
               const movie = { id, title, description, size, search_only: searchOnly, popular };
               try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
               movies.unshift(movie);
-              saveMovies();
+              await saveMovies();
               return res.json({ ok: true, movie, warning: 'gofile upload failed, stored locally' });
             }
           } catch (e) {
@@ -462,7 +536,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
             const movie = { id, title, description, size, search_only: searchOnly, popular };
             try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
             movies.unshift(movie);
-            saveMovies();
+            await saveMovies();
             return res.json({ ok: true, movie, warning: 'gofile integration error, stored locally' });
           }
         }
@@ -471,7 +545,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
         const movie = { id, title, description, size, search_only: searchOnly, popular };
         try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
         movies.unshift(movie);
-        saveMovies();
+        await saveMovies();
         return res.json({ ok: true, movie });
       })();
       return;
@@ -486,7 +560,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
           popular: req.body.popular
         });
         movies.unshift(movie);
-        saveMovies();
+        await saveMovies();
         return res.json({ ok: true, movie });
       })();
       return;
@@ -496,7 +570,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
   });
 });
 
-app.post('/api/admin/movies/visibility', requireAdminApi, (req, res) => {
+app.post('/api/admin/movies/visibility', requireAdminApi, async (req, res) => {
   const key = req.body.key;
   if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
 
@@ -504,11 +578,11 @@ app.post('/api/admin/movies/visibility', requireAdminApi, (req, res) => {
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   movie.search_only = isSearchOnlyValue(req.body.search_only);
-  saveMovies();
+  await saveMovies();
   res.json({ ok: true, movie: normalizeMovieData(movie) });
 });
 
-app.post('/api/admin/movies/popular', requireAdminApi, (req, res) => {
+app.post('/api/admin/movies/popular', requireAdminApi, async (req, res) => {
   const key = req.body.key;
   if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
 
@@ -516,7 +590,7 @@ app.post('/api/admin/movies/popular', requireAdminApi, (req, res) => {
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   movie.popular = isSearchOnlyValue(req.body.popular);
-  saveMovies();
+  await saveMovies();
   res.json({ ok: true, movie: normalizeMovieData(movie) });
 });
 
@@ -541,7 +615,7 @@ app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res)
     if (info.cast) movie.cast = info.cast;
     movie.trailer_checked = true;
     movie.cast_checked = true;
-    saveMovies();
+    await saveMovies();
     res.json({ ok: true, movie: normalizeMovieData(movie) });
   } catch (e) {
     console.error('refresh metadata error', e);
@@ -549,7 +623,7 @@ app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res)
   }
 });
 
-app.post('/api/admin/movies/delete', requireAdminApi, (req, res) => {
+app.post('/api/admin/movies/delete', requireAdminApi, async (req, res) => {
   const key = req.body.key;
   if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
 
@@ -557,7 +631,7 @@ app.post('/api/admin/movies/delete', requireAdminApi, (req, res) => {
   if (index === -1) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   const [deleted] = movies.splice(index, 1);
-  saveMovies();
+  await saveMovies();
   res.json({ ok: true, deleted: normalizeMovieData(deleted) });
 });
 
@@ -577,13 +651,9 @@ app.get('/sync-gofile', requireAdminApi, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Movie download site running at http://localhost:${PORT}`);
-});
-
 // --- Gofile account sync --------------------------------------------------
 // If GOFILE_TOKEN is provided, periodically poll the gofile account contents
-// and add any new files to the local `movies.json` catalog. This allows files
+// and add any new files to the catalog. This allows files
 // uploaded directly via gofile (with your token) to appear on the site.
 const GOFILE_TOKEN = process.env.GOFILE_TOKEN || null;
 const GOFILE_POLL_INTERVAL_MS = parseInt(process.env.GOFILE_POLL_INTERVAL_MS || String(5 * 60 * 1000), 10);
@@ -592,6 +662,38 @@ const MEETDOWNLOAD_MANIFEST_PATH = process.env.MEETDOWNLOAD_MANIFEST_PATH
   ? path.resolve(__dirname, process.env.MEETDOWNLOAD_MANIFEST_PATH)
   : null;
 const MEETDOWNLOAD_POLL_INTERVAL_MS = parseInt(process.env.MEETDOWNLOAD_POLL_INTERVAL_MS || String(30 * 60 * 1000), 10);
+
+function startBackgroundSyncs() {
+  if (GOFILE_TOKEN) {
+    // Run immediately, then on interval.
+    (async () => {
+      try { const n = await syncGofileOnce(); console.log('gofile sync added', n); } catch (e) { console.error('initial gofile sync failed', e && e.toString()); }
+      setInterval(async () => {
+        try { const n = await syncGofileOnce(); if (n) console.log('gofile sync added', n); } catch (e) { console.error('gofile sync error', e && e.toString()); }
+      }, GOFILE_POLL_INTERVAL_MS);
+    })();
+  }
+
+  if (MEETDOWNLOAD_MANIFEST_URL || MEETDOWNLOAD_MANIFEST_PATH) {
+    (async () => {
+      try {
+        const n = await syncMeetdownloadOnce();
+        if (n) console.log('meetdownload sync added', n);
+      } catch (e) {
+        console.error('initial meetdownload sync failed', e && e.toString());
+      }
+
+      setInterval(async () => {
+        try {
+          const n = await syncMeetdownloadOnce();
+          if (n) console.log('meetdownload sync added', n);
+        } catch (e) {
+          console.error('meetdownload sync error', e && e.toString());
+        }
+      }, MEETDOWNLOAD_POLL_INTERVAL_MS);
+    })();
+  }
+}
 
 async function syncGofileOnce() {
   if (!GOFILE_TOKEN) throw new Error('GOFILE_TOKEN not configured');
@@ -646,22 +748,12 @@ async function syncGofileOnce() {
       added++;
     }
 
-    if (added) saveMovies();
+    if (added) await saveMovies();
     return added;
   } catch (e) {
     console.error('syncGofileOnce error', e && e.toString());
     throw e;
   }
-}
-
-if (GOFILE_TOKEN) {
-  // Run immediately, then on interval
-  (async () => {
-    try { const n = await syncGofileOnce(); console.log('gofile sync added', n); } catch (e) { console.error('initial gofile sync failed', e && e.toString()); }
-    setInterval(async () => {
-      try { const n = await syncGofileOnce(); if (n) console.log('gofile sync added', n); } catch (e) { console.error('gofile sync error', e && e.toString()); }
-    }, GOFILE_POLL_INTERVAL_MS);
-  })();
 }
 
 // --- MeetDownload catalog sync -------------------------------------------
@@ -696,12 +788,12 @@ app.get('/import-meetdownload', requireAdminApi, async (req, res) => {
     const existing = movies.find((m) => m.url === movie.url);
     if (existing) {
       Object.assign(existing, { ...movie, id: existing.id || movie.id });
-      saveMovies();
+      await saveMovies();
       return res.json({ ok: true, added: false, movie: existing });
     }
 
     movies.unshift(movie);
-    saveMovies();
+    await saveMovies();
     return res.json({ ok: true, added: true, movie });
   } catch (e) {
     console.error('import-meetdownload error', e);
@@ -739,7 +831,7 @@ async function syncMeetdownloadOnce() {
     added++;
   }
 
-  if (added) saveMovies();
+  if (added) await saveMovies();
   return added;
 }
 
@@ -922,26 +1014,6 @@ function titleFromMeetdownloadUrl(url) {
   } catch (e) {
     return '';
   }
-}
-
-if (MEETDOWNLOAD_MANIFEST_URL || MEETDOWNLOAD_MANIFEST_PATH) {
-  (async () => {
-    try {
-      const n = await syncMeetdownloadOnce();
-      if (n) console.log('meetdownload sync added', n);
-    } catch (e) {
-      console.error('initial meetdownload sync failed', e && e.toString());
-    }
-
-    setInterval(async () => {
-      try {
-        const n = await syncMeetdownloadOnce();
-        if (n) console.log('meetdownload sync added', n);
-      } catch (e) {
-        console.error('meetdownload sync error', e && e.toString());
-      }
-    }, MEETDOWNLOAD_POLL_INTERVAL_MS);
-  })();
 }
 
 // --- TMDb poster lookup --------------------------------------------------
@@ -1164,3 +1236,19 @@ async function cachePosterImage(title, posterUrl) {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+async function startServer() {
+  try {
+    await initializeStorage();
+    refreshTmdbMetadataOnStartup();
+    startBackgroundSyncs();
+    app.listen(PORT, () => {
+      console.log(`Movie download site running at http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server', err);
+    process.exit(1);
+  }
+}
+
+startServer();

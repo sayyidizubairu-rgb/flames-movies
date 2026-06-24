@@ -35,6 +35,7 @@ Required production environment variables:
 ADMIN_PASSWORD=choose-a-strong-private-password
 ADMIN_SESSION_SECRET=generate-a-long-random-secret
 TMDB_API_KEY=your-tmdb-api-key
+DATABASE_URL=postgresql://user:password@host:5432/database
 NODE_ENV=production
 ```
 
@@ -52,13 +53,19 @@ After deploy:
 1. Open your public URL and confirm the catalog loads.
 2. Open `/admin` and log in with `ADMIN_PASSWORD`.
 3. Upload or add a movie link from the admin page.
-4. Check `/health`; it should return `{ "ok": true }`.
+4. Check `/health`; it should return `{ "ok": true }` and `"database_configured": true` when `DATABASE_URL` is set.
 
-Important storage note: local uploads go into `movies/` and catalog data is stored
-in `movies.json`. On hosts with temporary filesystems, uploaded files or catalog
-changes may disappear after redeploy/restart. For a serious public site, use
-persistent disk storage or an external file host/object storage, and eventually
-move `movies.json` to a database.
+Important storage note: external movie links and catalog changes are stored in
+Postgres when `DATABASE_URL` is set. If no database is configured, the app falls
+back to `movies.json`, which can reset on hosts with temporary filesystems after
+redeploys or restarts. Local file uploads still go into `movies/`, so use
+external links or object storage for public hosting.
+
+On Render, create a Postgres database or use Supabase, copy its Postgres
+connection string, then add it to your web service as the `DATABASE_URL`
+environment variable. On first deploy with a database, the app seeds the
+database from the current `movies.json`. After that, admin uploads, deletes, and
+homepage/popular toggles persist in the database.
 
 ## Admin
 
@@ -88,7 +95,7 @@ As the admin, you can upload movies you own or have license to distribute:
 
 1. Start the server (see steps above).
 2. Open `http://localhost:3000/admin`.
-3. Use the form to upload a file or provide an external URL. Uploaded files are saved to `movies/` and metadata is persisted in `movies.json`.
+3. Use the form to upload a file or provide an external URL. External link metadata is persisted in Postgres when `DATABASE_URL` is set, otherwise it falls back to `movies.json`. Uploaded files are saved to `movies/`.
 
 Downloads:
 - The server serves local files through `/download/:filename`.
@@ -98,8 +105,8 @@ Important: Do not upload copyrighted movies you do not have the rights to distri
 ## MeetDownload links
 
 MeetDownload can be used as an external file host by adding a MeetDownload URL in
-the admin page at `http://localhost:3000/admin`. The app stores the link in `movies.json` and
-shows it in the catalog like GoFile links.
+the admin page at `http://localhost:3000/admin`. The app stores the link in the
+configured catalog storage and shows it in the catalog like GoFile links.
 
 You can also import one MeetDownload file page directly:
 
