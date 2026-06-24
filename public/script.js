@@ -8,6 +8,7 @@ const uploadUrl = document.getElementById('uploadUrl');
 const uploadTitle = document.getElementById('uploadTitle');
 const uploadDescription = document.getElementById('uploadDescription');
 const showOnHomepage = document.getElementById('showOnHomepage');
+const showInPopular = document.getElementById('showInPopular');
 
 async function loadMovies() {
   const q = encodeURIComponent(searchInput ? (searchInput.value || '') : '');
@@ -25,13 +26,16 @@ function renderMovies(list) {
       <div>
         <h3>${movie.title}</h3>
         <p>${movie.description}</p>
-        <small>${movie.search_only ? 'Search only' : 'Homepage'}</small>
+        <small>${movie.search_only ? 'Search only' : 'Homepage'}${movie.popular ? ' • Popular' : ''}</small>
       </div>
       <div class="movie-meta">
         <span>${movie.size}</span>
         ${uploadForm ? `
         <button type="button" data-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-search-only="${movie.search_only ? '0' : '1'}">
           ${movie.search_only ? 'Show on homepage' : 'Make search-only'}
+        </button>
+        <button type="button" data-popular-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-popular="${movie.popular ? '0' : '1'}">
+          ${movie.popular ? 'Remove from popular' : 'Add to popular'}
         </button>
         ` : ''}
         ${movie.url ? `
@@ -67,6 +71,24 @@ function renderMovies(list) {
         loadMovies();
       });
     });
+    movieGrid.querySelectorAll('button[data-popular-key]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const body = new URLSearchParams();
+        body.set('key', decodeURIComponent(button.dataset.popularKey));
+        body.set('popular', button.dataset.popular);
+        const res = await fetch('/api/admin/movies/popular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert(data.error || 'Popular update failed');
+          return;
+        }
+        loadMovies();
+      });
+    });
   }
 }
 
@@ -83,6 +105,7 @@ if (uploadForm) {
     if (title) form.append('title', title);
     if (description) form.append('description', description);
     if (showOnHomepage && !showOnHomepage.checked) form.append('search_only', '1');
+    if (showInPopular && showInPopular.checked) form.append('popular', '1');
     const res = await fetch('/upload', { method: 'POST', body: form });
     const data = await res.json();
     if (data.ok) {

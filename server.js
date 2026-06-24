@@ -414,6 +414,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
         const description = req.body.description || '';
         const size = `${(req.file.size / 1024 / 1024).toFixed(2)} MB`;
         const searchOnly = isSearchOnlyValue(req.body.search_only);
+        const popular = isSearchOnlyValue(req.body.popular);
 
         // If GOFILE_UPLOAD=1 or GOFILE_TOKEN is set, forward the file to gofile.io and store the external link
         if (process.env.GOFILE_UPLOAD === '1' || process.env.GOFILE_TOKEN) {
@@ -434,7 +435,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
             const upJson = upRes.data;
             if (upJson.status === 'ok' && upJson.data) {
               const externalUrl = upJson.data.downloadPage || upJson.data.link || null;
-              const movie = { id: null, url: externalUrl, title, description, size, search_only: searchOnly };
+              const movie = { id: null, url: externalUrl, title, description, size, search_only: searchOnly, popular };
               try {
                 const poster = await fetchPoster(title, undefined);
                 if (poster) movie.poster = poster;
@@ -446,7 +447,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
               return res.json({ ok: true, movie, uploadedTo: 'gofile' });
             } else {
               console.error('gofile upload failed', upJson);
-              const movie = { id, title, description, size, search_only: searchOnly };
+              const movie = { id, title, description, size, search_only: searchOnly, popular };
               try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
               movies.unshift(movie);
               saveMovies();
@@ -454,7 +455,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
             }
           } catch (e) {
             console.error('gofile integration error', e);
-            const movie = { id, title, description, size, search_only: searchOnly };
+            const movie = { id, title, description, size, search_only: searchOnly, popular };
             try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
             movies.unshift(movie);
             saveMovies();
@@ -463,7 +464,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
         }
 
         // default: keep local file and save metadata
-        const movie = { id, title, description, size, search_only: searchOnly };
+        const movie = { id, title, description, size, search_only: searchOnly, popular };
         try { const poster = await fetchPoster(title, undefined); if (poster) movie.poster = poster; } catch (e) {}
         movies.unshift(movie);
         saveMovies();
@@ -477,7 +478,8 @@ app.post('/upload', requireAdminApi, (req, res) => {
         const movie = await buildExternalMovieFromUrl(req.body.url, {
           title: req.body.title,
           description: req.body.description,
-          search_only: req.body.search_only
+          search_only: req.body.search_only,
+          popular: req.body.popular
         });
         movies.unshift(movie);
         saveMovies();
@@ -498,6 +500,18 @@ app.post('/api/admin/movies/visibility', requireAdminApi, (req, res) => {
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   movie.search_only = isSearchOnlyValue(req.body.search_only);
+  saveMovies();
+  res.json({ ok: true, movie: normalizeMovieData(movie) });
+});
+
+app.post('/api/admin/movies/popular', requireAdminApi, (req, res) => {
+  const key = req.body.key;
+  if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
+
+  const movie = movies.find((item) => getMovieKey(item) === key);
+  if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
+
+  movie.popular = isSearchOnlyValue(req.body.popular);
   saveMovies();
   res.json({ ok: true, movie: normalizeMovieData(movie) });
 });
@@ -721,6 +735,7 @@ async function normalizeMeetdownloadEntry(entry) {
     if (entry.rating) movie.rating = Number(entry.rating);
     if (entry.tags) movie.tags = entry.tags;
     if (isSearchOnlyValue(entry.search_only)) movie.search_only = true;
+    if (isSearchOnlyValue(entry.popular)) movie.popular = true;
   }
 
   return movie;
@@ -732,6 +747,7 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     if (overrides.title) movie.title = overrides.title;
     if (overrides.description) movie.description = overrides.description;
     movie.search_only = isSearchOnlyValue(overrides.search_only);
+    movie.popular = isSearchOnlyValue(overrides.popular);
     return movie;
   }
 
@@ -741,7 +757,8 @@ async function buildExternalMovieFromUrl(url, overrides = {}) {
     title: overrides.title || url,
     description: overrides.description || '',
     size: '—',
-    search_only: isSearchOnlyValue(overrides.search_only)
+    search_only: isSearchOnlyValue(overrides.search_only),
+    popular: isSearchOnlyValue(overrides.popular)
   };
   try {
     const poster = await fetchPoster(movie.title, undefined);
