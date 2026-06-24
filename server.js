@@ -549,6 +549,18 @@ app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res)
   }
 });
 
+app.post('/api/admin/movies/delete', requireAdminApi, (req, res) => {
+  const key = req.body.key;
+  if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
+
+  const index = movies.findIndex((item) => getMovieKey(item) === key);
+  if (index === -1) return res.status(404).json({ ok: false, error: 'Movie not found' });
+
+  const [deleted] = movies.splice(index, 1);
+  saveMovies();
+  res.json({ ok: true, deleted: normalizeMovieData(deleted) });
+});
+
 function getMovieKey(movie) {
   return movie.url || movie.id || movie.title;
 }

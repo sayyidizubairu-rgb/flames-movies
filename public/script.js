@@ -40,6 +40,9 @@ function renderMovies(list) {
         <button type="button" data-refresh-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
           Refresh TMDb
         </button>
+        <button type="button" data-delete-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-delete-title="${encodeURIComponent(movie.title || 'Untitled')}">
+          Delete movie
+        </button>
         ` : ''}
         ${movie.url ? `
         <a class="download-btn" href="${movie.url}" target="_blank" rel="noopener noreferrer">
@@ -104,6 +107,27 @@ function renderMovies(list) {
         const data = await res.json();
         if (!data.ok) {
           alert(data.error || 'Metadata refresh failed');
+          return;
+        }
+        loadMovies();
+      });
+    });
+    movieGrid.querySelectorAll('button[data-delete-key]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const title = decodeURIComponent(button.dataset.deleteTitle);
+        const confirmed = window.confirm(`Delete "${title}" from the catalog? This cannot be undone.`);
+        if (!confirmed) return;
+
+        const body = new URLSearchParams();
+        body.set('key', decodeURIComponent(button.dataset.deleteKey));
+        const res = await fetch('/api/admin/movies/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert(data.error || 'Delete failed');
           return;
         }
         loadMovies();
