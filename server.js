@@ -303,7 +303,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    tmdb_configured: Boolean(tmdbKey),
+    admin_configured: Boolean(ADMIN_PASSWORD)
+  });
 });
 
 app.get('/upload.html', (req, res) => {
@@ -514,6 +518,35 @@ app.post('/api/admin/movies/popular', requireAdminApi, (req, res) => {
   movie.popular = isSearchOnlyValue(req.body.popular);
   saveMovies();
   res.json({ ok: true, movie: normalizeMovieData(movie) });
+});
+
+app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res) => {
+  if (!tmdbKey) return res.status(400).json({ ok: false, error: 'TMDB_API_KEY not set' });
+  const key = req.body.key;
+  if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
+
+  const movie = movies.find((item) => getMovieKey(item) === key);
+  if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
+
+  try {
+    const info = await fetchTmdbInfo(movie.title, movie.year);
+    if (!info) return res.status(404).json({ ok: false, error: 'No TMDb match found' });
+
+    if (info.poster) movie.poster = info.poster;
+    if (info.description) movie.description = info.description;
+    if (info.year) movie.year = info.year;
+    if (info.rating) movie.rating = info.rating;
+    if (info.genre) movie.genre = info.genre;
+    if (info.trailer_url) movie.trailer_url = info.trailer_url;
+    if (info.cast) movie.cast = info.cast;
+    movie.trailer_checked = true;
+    movie.cast_checked = true;
+    saveMovies();
+    res.json({ ok: true, movie: normalizeMovieData(movie) });
+  } catch (e) {
+    console.error('refresh metadata error', e);
+    res.status(500).json({ ok: false, error: 'Metadata refresh failed' });
+  }
 });
 
 function getMovieKey(movie) {

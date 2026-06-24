@@ -37,6 +37,9 @@ function renderMovies(list) {
         <button type="button" data-popular-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-popular="${movie.popular ? '0' : '1'}">
           ${movie.popular ? 'Remove from popular' : 'Add to popular'}
         </button>
+        <button type="button" data-refresh-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
+          Refresh TMDb
+        </button>
         ` : ''}
         ${movie.url ? `
         <a class="download-btn" href="${movie.url}" target="_blank" rel="noopener noreferrer">
@@ -84,6 +87,23 @@ function renderMovies(list) {
         const data = await res.json();
         if (!data.ok) {
           alert(data.error || 'Popular update failed');
+          return;
+        }
+        loadMovies();
+      });
+    });
+    movieGrid.querySelectorAll('button[data-refresh-key]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const body = new URLSearchParams();
+        body.set('key', decodeURIComponent(button.dataset.refreshKey));
+        const res = await fetch('/api/admin/movies/refresh-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert(data.error || 'Metadata refresh failed');
           return;
         }
         loadMovies();
