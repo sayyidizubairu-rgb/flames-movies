@@ -424,9 +424,13 @@ function getSeriesKey(title) {
 function groupMoviesForPublic(list) {
   const grouped = [];
   const seriesMap = new Map();
+  const movieKeys = new Set();
 
   for (const movie of list) {
     if (!movie.series_title) {
+      const key = getMovieKey(movie);
+      if (movieKeys.has(key)) continue;
+      movieKeys.add(key);
       grouped.push(movie);
       continue;
     }
@@ -1208,40 +1212,43 @@ async function fetchTmdbInfo(title, year, options = {}) {
     { path: 'search/tv', type: 'tv' }
   ];
 
-  for (const query of queries) {
-    for (const search of searches) {
-      try {
-        const params = { api_key: tmdbKey, query, include_adult: false };
-        if (search.type === 'movie' && year) params.primary_release_year = year;
-        if (search.type === 'tv' && year) params.first_air_date_year = year;
+  const yearAttempts = year ? [year, null] : [null];
+  for (const activeYear of yearAttempts) {
+    for (const query of queries) {
+      for (const search of searches) {
+        try {
+          const params = { api_key: tmdbKey, query, include_adult: false };
+          if (search.type === 'movie' && activeYear) params.primary_release_year = activeYear;
+          if (search.type === 'tv' && activeYear) params.first_air_date_year = activeYear;
 
-        const res = await axios.get(`https://api.themoviedb.org/3/${search.path}`, { params });
-        if (res && res.data && Array.isArray(res.data.results) && res.data.results.length) {
-          const best = chooseBestTmdbResult(res.data.results, query, year);
-          if (best) {
-            const posterPath = best.poster_path || best.backdrop_path;
-            const posterUrl = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null;
-            const poster = posterUrl ? await resolvePosterUrl(title, posterUrl) : null;
-            const overview = best.overview || null;
-            const releaseDate = best.release_date || best.first_air_date || null;
-            const resultYear = releaseDate ? Number(releaseDate.slice(0, 4)) : undefined;
-            const rating = best.vote_average ? Number(best.vote_average.toFixed(1)) : undefined;
-            const genre = Array.isArray(best.genre_ids) ? getTmdbGenreName(best.genre_ids) : undefined;
-            const trailerUrl = await fetchTmdbTrailer(best.id, search.type);
-            const cast = await fetchTmdbCast(best.id, search.type);
-            return {
-              poster,
-              description: overview,
-              year: resultYear,
-              rating,
-              genre,
-              trailer_url: trailerUrl,
-              cast
-            };
+          const res = await axios.get(`https://api.themoviedb.org/3/${search.path}`, { params });
+          if (res && res.data && Array.isArray(res.data.results) && res.data.results.length) {
+            const best = chooseBestTmdbResult(res.data.results, query, activeYear);
+            if (best) {
+              const posterPath = best.poster_path || best.backdrop_path;
+              const posterUrl = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null;
+              const poster = posterUrl ? await resolvePosterUrl(title, posterUrl) : null;
+              const overview = best.overview || null;
+              const releaseDate = best.release_date || best.first_air_date || null;
+              const resultYear = releaseDate ? Number(releaseDate.slice(0, 4)) : undefined;
+              const rating = best.vote_average ? Number(best.vote_average.toFixed(1)) : undefined;
+              const genre = Array.isArray(best.genre_ids) ? getTmdbGenreName(best.genre_ids) : undefined;
+              const trailerUrl = await fetchTmdbTrailer(best.id, search.type);
+              const cast = await fetchTmdbCast(best.id, search.type);
+              return {
+                poster,
+                description: overview,
+                year: resultYear,
+                rating,
+                genre,
+                trailer_url: trailerUrl,
+                cast
+              };
+            }
           }
+        } catch (e) {
+          console.error('fetchTmdbInfo error', e && e.toString());
         }
-      } catch (e) {
-        console.error('fetchTmdbInfo error', e && e.toString());
       }
     }
   }
