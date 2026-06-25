@@ -394,7 +394,27 @@ function normalizeMovieData(movie) {
   if (normalized.poster && isUnstablePoster(normalized.poster)) {
     delete normalized.poster;
   }
+  if (normalized.poster) {
+    normalized.poster = getPublicPosterUrl(normalized.poster);
+  }
   return normalized;
+}
+
+function getPublicPosterUrl(poster) {
+  if (!poster || typeof poster !== 'string') return poster;
+  if (isTmdbImageUrl(poster)) {
+    return `/poster?url=${encodeURIComponent(poster)}`;
+  }
+  return poster;
+}
+
+function isTmdbImageUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && parsed.hostname === 'image.tmdb.org';
+  } catch (e) {
+    return false;
+  }
 }
 
 function getSeriesKey(title) {
@@ -544,6 +564,36 @@ app.post('/admin/logout', (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/poster', async (req, res) => {
+  const posterUrl = req.query.url;
+  if (!isTmdbImageUrl(posterUrl)) {
+    return res.status(400).send('Invalid poster URL.');
+  }
+
+  try {
+    const response = await axios.get(posterUrl, {
+      responseType: 'arraybuffer',
+      timeout: 15000,
+      validateStatus: null
+    });
+    if (!response || response.status >= 400) {
+      return res.status(502).send('Poster unavailable.');
+    }
+
+    const contentType = response.headers['content-type'] || 'image/jpeg';
+    if (!contentType.startsWith('image/')) {
+      return res.status(502).send('Poster unavailable.');
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.send(Buffer.from(response.data));
+  } catch (e) {
+    console.error('poster proxy error', e && e.toString());
+    res.status(502).send('Poster unavailable.');
+  }
+});
 
 app.get('/api/movies', async (req, res) => {
   const q = (req.query.q || '').toLowerCase().trim();
