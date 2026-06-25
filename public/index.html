@@ -192,10 +192,12 @@
     let activeGenre = '';
     let activeQuality = '';
     let sortBy = 'latest';
+    let searchTimer = null;
 
     async function loadMovies() {
       try {
-        const response = await fetch('/api/movies');
+        const endpoint = query ? `/api/movies?q=${encodeURIComponent(query)}` : '/api/movies';
+        const response = await fetch(endpoint);
         movies = await response.json();
       } catch (error) {
         movies = [];
@@ -249,7 +251,8 @@
 
     searchInput.addEventListener('input', (event) => {
       query = event.target.value.trim().toLowerCase();
-      render();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadMovies, 250);
     });
 
     genreFilter.addEventListener('change', (event) => {
@@ -264,12 +267,6 @@
 
     function render() {
       let list = [...movies];
-      if (query) {
-        list = list.filter(movie => {
-          const content = `${movie.title || ''} ${movie.description || ''} ${movie.genre || ''} ${movie.quality || ''}`.toLowerCase();
-          return content.includes(query);
-        });
-      }
       if (activeGenre) list = list.filter(movie => movie.genre === activeGenre);
       if (activeQuality) list = list.filter(movie => (movie.quality || '').toUpperCase() === activeQuality);
       if (sortBy === 'latest') list.sort((a, b) => (b.year || 0) - (a.year || 0));

@@ -606,7 +606,10 @@ app.get('/api/movies', async (req, res) => {
   const publicList = includeHidden ? normalized : groupMoviesForPublic(normalized);
   if (!q) return res.json(includeHidden ? publicList : publicList.filter((m) => !m.search_only));
   const results = publicList.filter((m) => {
-    const hay = ((m.title || '') + ' ' + (m.description || '') + ' ' + (m.tags || '') + ' ' + (m.genre || '') + ' ' + (m.quality || '')).toLowerCase();
+    const episodeText = Array.isArray(m.episodes)
+      ? m.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''}`).join(' ')
+      : `${m.series_title || ''} ${m.episode_label || ''}`;
+    const hay = ((m.title || '') + ' ' + (m.description || '') + ' ' + (m.tags || '') + ' ' + (m.genre || '') + ' ' + (m.quality || '') + ' ' + episodeText).toLowerCase();
     return hay.includes(q);
   });
   res.json(results);
