@@ -281,8 +281,16 @@ function getPublicPageStyles() {
   </style>`;
 }
 
+function isLocalPosterPath(poster) {
+  return typeof poster === 'string' && poster.startsWith('/posters/');
+}
+
+function isUnstablePoster(poster) {
+  return Boolean(poster && (poster.includes('picsum.photos') || poster.startsWith('data:image') || isLocalPosterPath(poster)));
+}
+
 function needsTmdbMetadata(movie) {
-  return !movie.poster || movie.poster.includes('picsum.photos') || !movie.description || !movie.year || !movie.rating || (!movie.trailer_url && !movie.trailer_checked) || (!movie.cast && !movie.cast_checked);
+  return !movie.poster || isUnstablePoster(movie.poster) || !movie.description || !movie.year || !movie.rating || (!movie.trailer_url && !movie.trailer_checked) || (!movie.cast && !movie.cast_checked);
 }
 
 function refreshTmdbMetadataOnStartup() {
@@ -335,6 +343,10 @@ function stableRating(title) {
   return Number(((value % 40) / 10 + 6).toFixed(1));
 }
 
+function shouldUseRemotePosterUrls() {
+  return process.env.NODE_ENV === 'production' || Boolean(DATABASE_URL);
+}
+
 function ensureTmdbMetadata(movie) {
   if (!tmdbKey || !movie.title) return Promise.resolve();
   const key = movie.url || movie.id || movie.title;
@@ -345,7 +357,7 @@ function ensureTmdbMetadata(movie) {
     .then((info) => {
       if (!info) return;
       let updated = false;
-      const isPlaceholderPoster = movie.poster && (movie.poster.includes('picsum.photos') || movie.poster.startsWith('data:image'));
+      const isPlaceholderPoster = isUnstablePoster(movie.poster);
       if ((isPlaceholderPoster || !movie.poster) && info.poster) { movie.poster = info.poster; updated = true; }
       if (!movie.description && info.description) { movie.description = info.description; updated = true; }
       if (!movie.year && info.year) { movie.year = info.year; updated = true; }
@@ -379,7 +391,7 @@ function normalizeMovieData(movie) {
   normalized.size = normalized.size || '—';
   normalized.download_url = normalized.download_url || normalized.url || (normalized.id ? `/download/${normalized.id}` : null);
   normalized.key = getMovieKey(normalized);
-  if (normalized.poster && (normalized.poster.includes('picsum.photos') || normalized.poster.startsWith('data:image'))) {
+  if (normalized.poster && isUnstablePoster(normalized.poster)) {
     delete normalized.poster;
   }
   return normalized;
@@ -1156,7 +1168,7 @@ async function fetchTmdbInfo(title, year, options = {}) {
           if (best) {
             const posterPath = best.poster_path || best.backdrop_path;
             const posterUrl = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null;
-            const poster = posterUrl ? await cachePosterImage(title, posterUrl) : null;
+            const poster = posterUrl ? await resolvePosterUrl(title, posterUrl) : null;
             const overview = best.overview || null;
             const releaseDate = best.release_date || best.first_air_date || null;
             const resultYear = releaseDate ? Number(releaseDate.slice(0, 4)) : undefined;
@@ -1322,6 +1334,13 @@ function normalizeTitleForFilename(title) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 120) || 'poster';
+}
+
+async function resolvePosterUrl(title, posterUrl) {
+  if (shouldUseRemotePosterUrls()) {
+    return posterUrl;
+  }
+  return cachePosterImage(title, posterUrl);
 }
 
 async function cachePosterImage(title, posterUrl) {
