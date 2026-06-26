@@ -787,6 +787,52 @@ app.post('/api/admin/movies/popular', requireAdminApi, async (req, res) => {
   res.json({ ok: true, movie: normalizeMovieData(movie) });
 });
 
+app.post('/api/admin/movies/update', requireAdminApi, async (req, res) => {
+  const key = req.body.key;
+  if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
+
+  const movie = movies.find((item) => getMovieKey(item) === key);
+  if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
+
+  const title = String(req.body.title || '').trim();
+  if (!title) return res.status(400).json({ ok: false, error: 'Title is required' });
+
+  const nextUrl = String(req.body.url || '').trim();
+  const nextSeriesTitle = String(req.body.series_title || '').trim();
+  const nextEpisodeLabel = String(req.body.episode_label || '').trim();
+  const candidate = { ...movie };
+
+  candidate.title = title;
+  candidate.description = String(req.body.description || '').trim();
+  candidate.search_only = isSearchOnlyValue(req.body.search_only);
+  candidate.popular = isSearchOnlyValue(req.body.popular);
+
+  if (nextUrl) {
+    candidate.url = nextUrl;
+    candidate.id = candidate.id || null;
+  } else if (candidate.id) {
+    delete candidate.url;
+  } else if (candidate.url) {
+    return res.status(400).json({ ok: false, error: 'External link is required for this catalog item' });
+  }
+
+  if (nextSeriesTitle) candidate.series_title = nextSeriesTitle;
+  else delete candidate.series_title;
+
+  if (nextEpisodeLabel) candidate.episode_label = nextEpisodeLabel;
+  else delete candidate.episode_label;
+
+  const originalKey = getMovieKey(movie);
+  const nextKey = getMovieKey(candidate);
+  if (nextKey !== originalKey && movies.some((item) => item !== movie && getMovieKey(item) === nextKey)) {
+    return res.status(409).json({ ok: false, error: 'Another movie already uses that title or link' });
+  }
+
+  Object.assign(movie, candidate);
+  await saveMovies();
+  res.json({ ok: true, movie: normalizeMovieData(movie) });
+});
+
 app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res) => {
   if (!tmdbKey) return res.status(400).json({ ok: false, error: 'TMDB_API_KEY not set' });
   const key = req.body.key;

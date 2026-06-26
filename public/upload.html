@@ -12,7 +12,9 @@
     .check-label{display:flex;align-items:flex-start;gap:10px}
     .check-label input{margin-top:3px}
     button{margin-top:14px;padding:10px 14px;border-radius:10px;border:none;background:#ff4d2d;color:#111;font-weight:700;cursor:pointer}
+    .secondary-btn{background:rgba(255,255,255,0.08);color:#e6eef6}
     .muted{color:#94a3b8;font-size:13px;margin-top:8px}
+    .edit-status{display:none;margin:10px 0 0;padding:10px;border-radius:8px;background:rgba(255,77,45,0.12);color:#ffb8a8}
     .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .logout{margin:0;background:rgba(255,255,255,0.08);color:#e6eef6}
     a{color:#ffb8a8}
@@ -30,6 +32,7 @@
       </form>
     </div>
     <p class="muted">Upload a movie file you have the rights to distribute. The file will be stored on this server and added to the catalog.</p>
+    <div id="editStatus" class="edit-status"></div>
     <form id="uploadForm" method="post" action="/upload" enctype="multipart/form-data">
       <label>Title<input id="uploadTitle" type="text" name="title" placeholder="Movie title" required></label>
       <label>Series name (optional)<input id="seriesTitle" type="text" name="series_title" placeholder="Use the same name for every episode"></label>
@@ -39,7 +42,8 @@
       <label>External URL (optional)<input id="uploadUrl" type="url" name="url" placeholder="https://example.com/movie.mp4"></label>
       <label class="check-label"><input id="showOnHomepage" type="checkbox" checked><span>Show on homepage</span></label>
       <label class="check-label"><input id="showInPopular" type="checkbox"><span>Show in Most Popular</span></label>
-      <button type="submit">Upload</button>
+      <button id="submitButton" type="submit">Upload</button>
+      <button id="cancelEditButton" class="secondary-btn" type="button" hidden>Cancel edit</button>
     </form>
     <div class="muted">Uncheck homepage visibility when a movie should appear only after visitors search for it.</div>
     <section id="movieGrid" style="margin-top:24px"></section>

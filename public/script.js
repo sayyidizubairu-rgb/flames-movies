@@ -11,6 +11,10 @@ const seriesTitle = document.getElementById('seriesTitle');
 const episodeLabel = document.getElementById('episodeLabel');
 const showOnHomepage = document.getElementById('showOnHomepage');
 const showInPopular = document.getElementById('showInPopular');
+const submitButton = document.getElementById('submitButton');
+const cancelEditButton = document.getElementById('cancelEditButton');
+const editStatus = document.getElementById('editStatus');
+let editingKey = '';
 
 async function loadMovies() {
   const q = encodeURIComponent(searchInput ? (searchInput.value || '') : '');
@@ -38,6 +42,9 @@ function renderMovies(list) {
         </button>
         <button type="button" data-popular-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-popular="${movie.popular ? '0' : '1'}">
           ${movie.popular ? 'Remove from popular' : 'Add to popular'}
+        </button>
+        <button type="button" data-edit-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
+          Edit
         </button>
         <button type="button" data-refresh-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
           Refresh TMDb
@@ -97,6 +104,17 @@ function renderMovies(list) {
         loadMovies();
       });
     });
+    movieGrid.querySelectorAll('button[data-edit-key]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const key = decodeURIComponent(button.dataset.editKey);
+        const movie = movies.find((item) => (item.key || item.url || item.id || item.title) === key);
+        if (!movie) {
+          alert('Movie not found');
+          return;
+        }
+        startEdit(movie);
+      });
+    });
     movieGrid.querySelectorAll('button[data-refresh-key]').forEach((button) => {
       button.addEventListener('click', async () => {
         const body = new URLSearchParams();
@@ -138,7 +156,41 @@ function renderMovies(list) {
   }
 }
 
+function startEdit(movie) {
+  editingKey = movie.key || movie.url || movie.id || movie.title;
+  uploadTitle.value = movie.title || '';
+  uploadDescription.value = movie.description || '';
+  uploadUrl.value = movie.url || '';
+  if (seriesTitle) seriesTitle.value = movie.series_title || '';
+  if (episodeLabel) episodeLabel.value = movie.episode_label || '';
+  if (showOnHomepage) showOnHomepage.checked = !movie.search_only;
+  if (showInPopular) showInPopular.checked = Boolean(movie.popular);
+  if (uploadFile) uploadFile.value = '';
+  if (submitButton) submitButton.textContent = 'Save changes';
+  if (cancelEditButton) cancelEditButton.hidden = false;
+  if (editStatus) {
+    editStatus.textContent = `Editing: ${movie.title || 'Untitled'}`;
+    editStatus.style.display = 'block';
+  }
+  uploadForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function stopEdit() {
+  editingKey = '';
+  uploadForm.reset();
+  if (submitButton) submitButton.textContent = 'Upload';
+  if (cancelEditButton) cancelEditButton.hidden = true;
+  if (editStatus) {
+    editStatus.textContent = '';
+    editStatus.style.display = 'none';
+  }
+}
+
 if (uploadForm) {
+  if (cancelEditButton) {
+    cancelEditButton.addEventListener('click', stopEdit);
+  }
+
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = new FormData();
@@ -148,6 +200,39 @@ if (uploadForm) {
     const description = uploadDescription.value.trim();
     const series = seriesTitle ? seriesTitle.value.trim() : '';
     const episode = episodeLabel ? episodeLabel.value.trim() : '';
+
+    if (editingKey) {
+      if (file) {
+        alert('File changes are not supported while editing. Clear the file field, or upload it as a new item.');
+        return;
+      }
+
+      const body = new URLSearchParams();
+      body.set('key', editingKey);
+      body.set('title', title);
+      body.set('description', description);
+      body.set('url', url);
+      body.set('series_title', series);
+      body.set('episode_label', episode);
+      body.set('search_only', showOnHomepage && !showOnHomepage.checked ? '1' : '0');
+      body.set('popular', showInPopular && showInPopular.checked ? '1' : '0');
+
+      const res = await fetch('/api/admin/movies/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || 'Update failed');
+        return;
+      }
+      stopEdit();
+      loadMovies();
+      alert('Movie updated');
+      return;
+    }
+
     if (file) form.append('file', file);
     if (url) form.append('url', url);
     if (title) form.append('title', title);
