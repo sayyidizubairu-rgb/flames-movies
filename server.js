@@ -165,6 +165,21 @@ async function addMovieToCatalog(movie) {
   return movie;
 }
 
+async function addMoviesToCatalog(movieList) {
+  const added = movieList.filter(Boolean);
+  movies.unshift(...added);
+  try {
+    await saveMovies();
+  } catch (err) {
+    for (const movie of added) {
+      const index = movies.indexOf(movie);
+      if (index !== -1) movies.splice(index, 1);
+    }
+    throw err;
+  }
+  return added;
+}
+
 function getCookie(req, name) {
   const cookieHeader = req.headers.cookie || '';
   const cookies = cookieHeader.split(';').map((part) => part.trim()).filter(Boolean);
@@ -848,6 +863,57 @@ app.post('/upload', requireAdminApi, (req, res) => {
 
     res.status(400).json({ ok: false, error: 'No file or URL provided' });
   });
+});
+
+app.post('/api/admin/series/batch', requireAdminApi, async (req, res) => {
+  const seriesTitle = String(req.body.series_title || '').trim();
+  const description = String(req.body.description || '').trim();
+  const episodes = Array.isArray(req.body.episodes) ? req.body.episodes : [];
+
+  if (!seriesTitle) return res.status(400).json({ ok: false, error: 'Series name is required' });
+
+  const validEpisodes = episodes
+    .map((episode) => ({
+      label: String(episode && episode.label ? episode.label : '').trim(),
+      url: String(episode && episode.url ? episode.url : '').trim(),
+      title: String(episode && episode.title ? episode.title : '').trim()
+    }))
+    .filter((episode) => episode.label && episode.url);
+
+  if (!validEpisodes.length) {
+    return res.status(400).json({ ok: false, error: 'Add at least one episode label and link' });
+  }
+
+  const duplicateInRequest = validEpisodes.find((episode, index) => validEpisodes.some((item, itemIndex) => itemIndex !== index && item.url === episode.url));
+  if (duplicateInRequest) {
+    return res.status(409).json({ ok: false, error: `Duplicate episode link in this upload: ${duplicateInRequest.url}` });
+  }
+
+  const existing = validEpisodes.find((episode) => movies.some((movie) => movie.url === episode.url));
+  if (existing) {
+    return res.status(409).json({ ok: false, error: `This episode link already exists: ${existing.url}` });
+  }
+
+  try {
+    const batch = [];
+    for (const episode of validEpisodes) {
+      const movie = await buildExternalMovieFromUrl(episode.url, {
+        title: episode.title || `${seriesTitle} ${episode.label}`,
+        description,
+        search_only: req.body.search_only,
+        popular: req.body.popular,
+        series_title: seriesTitle,
+        episode_label: episode.label
+      });
+      batch.push(movie);
+    }
+
+    await addMoviesToCatalog(batch);
+    res.json({ ok: true, added: batch.length, movies: batch.map(normalizeMovieData) });
+  } catch (e) {
+    console.error('series batch upload error', e);
+    res.status(500).json({ ok: false, error: 'Series batch upload failed while saving.' });
+  }
 });
 
 app.post('/api/admin/movies/visibility', requireAdminApi, async (req, res) => {

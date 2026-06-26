@@ -19,10 +19,14 @@
     .stat-box strong{display:block;font-size:22px;color:#fff}
     .stat-box span{display:block;margin-top:4px;color:#94a3b8;font-size:12px}
     .edit-status{display:none;margin:10px 0 0;padding:10px;border-radius:8px;background:rgba(255,77,45,0.12);color:#ffb8a8}
+    .section-title{margin:28px 0 4px;font-size:18px}
+    .episode-row{display:grid;grid-template-columns:150px 1fr auto;gap:8px;align-items:end;margin-top:10px}
+    .episode-row label{margin-top:0}
+    .remove-episode{background:rgba(255,255,255,0.08);color:#e6eef6}
     .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .logout{margin:0;background:rgba(255,255,255,0.08);color:#e6eef6}
     a{color:#ffb8a8}
-    @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.episode-row{grid-template-columns:1fr}.episode-row button{width:100%}}
   </style>
 </head>
 <body>
@@ -52,6 +56,17 @@
       <button id="cancelEditButton" class="secondary-btn" type="button" hidden>Cancel edit</button>
     </form>
     <div class="muted">Uncheck homepage visibility when a movie should appear only after visitors search for it.</div>
+    <h3 class="section-title">Series batch upload</h3>
+    <p class="muted">Add many episode links at once. Use labels like S01E01, S01E02, S01E03.</p>
+    <form id="seriesBatchForm">
+      <label>Series name<input id="batchSeriesTitle" type="text" placeholder="Series title" required></label>
+      <label>Description<textarea id="batchDescription" rows="3" placeholder="Short description for the series"></textarea></label>
+      <div id="episodeRows"></div>
+      <button id="addEpisodeButton" class="secondary-btn" type="button">Add episode slot</button>
+      <label class="check-label"><input id="batchShowOnHomepage" type="checkbox" checked><span>Show on homepage</span></label>
+      <label class="check-label"><input id="batchShowInPopular" type="checkbox"><span>Show in Most Popular</span></label>
+      <button id="batchSubmitButton" type="submit">Upload series episodes</button>
+    </form>
     <section id="movieGrid" style="margin-top:24px"></section>
   </div>
   <script src="/script.js"></script>

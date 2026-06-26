@@ -15,8 +15,17 @@ const submitButton = document.getElementById('submitButton');
 const cancelEditButton = document.getElementById('cancelEditButton');
 const editStatus = document.getElementById('editStatus');
 const adminStats = document.getElementById('adminStats');
+const seriesBatchForm = document.getElementById('seriesBatchForm');
+const batchSeriesTitle = document.getElementById('batchSeriesTitle');
+const batchDescription = document.getElementById('batchDescription');
+const episodeRows = document.getElementById('episodeRows');
+const addEpisodeButton = document.getElementById('addEpisodeButton');
+const batchShowOnHomepage = document.getElementById('batchShowOnHomepage');
+const batchShowInPopular = document.getElementById('batchShowInPopular');
+const batchSubmitButton = document.getElementById('batchSubmitButton');
 let editingKey = '';
 let searchTimer = null;
+let episodeSlotCount = 0;
 
 async function loadMovies() {
   try {
@@ -290,6 +299,85 @@ if (uploadForm) {
       alert('Upload added');
     } else {
       alert(data.error || 'Upload failed');
+    }
+  });
+}
+
+function addEpisodeRow(label = '', url = '') {
+  if (!episodeRows) return;
+  episodeSlotCount += 1;
+  const row = document.createElement('div');
+  row.className = 'episode-row';
+  row.innerHTML = `
+    <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(label || `S01E${String(episodeSlotCount).padStart(2, '0')}`)}" placeholder="S01E01"></label>
+    <label>Episode link<input class="episode-url-input" type="url" value="${escapeAttr(url)}" placeholder="https://example.com/episode-link"></label>
+    <button class="remove-episode" type="button">Remove</button>
+  `;
+  row.querySelector('.remove-episode').addEventListener('click', () => {
+    row.remove();
+    if (!episodeRows.children.length) addEpisodeRow();
+  });
+  episodeRows.appendChild(row);
+}
+
+if (seriesBatchForm) {
+  addEpisodeRow();
+  addEpisodeRow();
+  addEpisodeRow();
+
+  if (addEpisodeButton) {
+    addEpisodeButton.addEventListener('click', () => addEpisodeRow());
+  }
+
+  seriesBatchForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const episodes = Array.from(episodeRows.querySelectorAll('.episode-row'))
+      .map((row) => ({
+        label: row.querySelector('.episode-label-input').value.trim(),
+        url: row.querySelector('.episode-url-input').value.trim()
+      }))
+      .filter((episode) => episode.label || episode.url);
+
+    if (!batchSeriesTitle.value.trim()) {
+      alert('Series name is required');
+      return;
+    }
+
+    if (!episodes.length || episodes.some((episode) => !episode.label || !episode.url)) {
+      alert('Every episode row must have both a label and a link.');
+      return;
+    }
+
+    if (batchSubmitButton) batchSubmitButton.disabled = true;
+    try {
+      const response = await fetch('/api/admin/series/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          series_title: batchSeriesTitle.value.trim(),
+          description: batchDescription.value.trim(),
+          episodes,
+          search_only: batchShowOnHomepage && !batchShowOnHomepage.checked ? '1' : '0',
+          popular: batchShowInPopular && batchShowInPopular.checked ? '1' : '0'
+        })
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        alert(data.error || 'Series upload failed');
+        return;
+      }
+      seriesBatchForm.reset();
+      episodeRows.innerHTML = '';
+      episodeSlotCount = 0;
+      addEpisodeRow();
+      addEpisodeRow();
+      addEpisodeRow();
+      loadMovies();
+      alert(`Added ${data.added} episode${data.added === 1 ? '' : 's'}`);
+    } catch (error) {
+      alert('Series upload failed');
+    } finally {
+      if (batchSubmitButton) batchSubmitButton.disabled = false;
     }
   });
 }
