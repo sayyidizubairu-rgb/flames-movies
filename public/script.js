@@ -16,6 +16,7 @@ const cancelEditButton = document.getElementById('cancelEditButton');
 const editStatus = document.getElementById('editStatus');
 const adminStats = document.getElementById('adminStats');
 let editingKey = '';
+let searchTimer = null;
 
 async function loadMovies() {
   const q = encodeURIComponent(searchInput ? (searchInput.value || '') : '');
@@ -280,12 +281,8 @@ if (uploadForm) {
 
 if (searchInput) {
   searchInput.addEventListener('input', () => {
-    const query = searchInput.value.trim().toLowerCase();
-    const filtered = movies.filter((movie) =>
-      (movie.title || '').toLowerCase().includes(query) ||
-      (movie.description || '').toLowerCase().includes(query)
-    );
-    renderMovies(filtered);
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadMovies, 250);
   });
 }
 
