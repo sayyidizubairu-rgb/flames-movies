@@ -18,14 +18,14 @@ const adminStats = document.getElementById('adminStats');
 const seriesBatchForm = document.getElementById('seriesBatchForm');
 const batchSeriesTitle = document.getElementById('batchSeriesTitle');
 const batchDescription = document.getElementById('batchDescription');
-const episodeRows = document.getElementById('episodeRows');
-const addEpisodeButton = document.getElementById('addEpisodeButton');
+const seasonBlocks = document.getElementById('seasonBlocks');
+const addSeasonButton = document.getElementById('addSeasonButton');
 const batchShowOnHomepage = document.getElementById('batchShowOnHomepage');
 const batchShowInPopular = document.getElementById('batchShowInPopular');
 const batchSubmitButton = document.getElementById('batchSubmitButton');
 let editingKey = '';
 let searchTimer = null;
-let episodeSlotCount = 0;
+let seasonCount = 0;
 
 async function loadMovies() {
   try {
@@ -303,35 +303,77 @@ if (uploadForm) {
   });
 }
 
-function addEpisodeRow(label = '', url = '') {
-  if (!episodeRows) return;
-  episodeSlotCount += 1;
+function getEpisodeLabel(seasonNumber, episodeNumber) {
+  return `S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
+}
+
+function getSeasonNumber(seasonBlock) {
+  return Number(seasonBlock.dataset.season || '1') || 1;
+}
+
+function addEpisodeRow(seasonBlock, url = '') {
+  const rows = seasonBlock && seasonBlock.querySelector('.episode-rows');
+  if (!rows) return;
+  const seasonNumber = getSeasonNumber(seasonBlock);
+  const episodeNumber = rows.children.length + 1;
   const row = document.createElement('div');
   row.className = 'episode-row';
   row.innerHTML = `
-    <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(label || `S01E${String(episodeSlotCount).padStart(2, '0')}`)}" placeholder="S01E01"></label>
+    <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}" placeholder="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}"></label>
     <label>Episode link<input class="episode-url-input" type="url" value="${escapeAttr(url)}" placeholder="https://example.com/episode-link"></label>
     <button class="remove-episode" type="button">Remove</button>
   `;
   row.querySelector('.remove-episode').addEventListener('click', () => {
     row.remove();
-    if (!episodeRows.children.length) addEpisodeRow();
+    if (!rows.children.length) addEpisodeRow(seasonBlock);
   });
-  episodeRows.appendChild(row);
+  rows.appendChild(row);
+}
+
+function addSeasonBlock() {
+  if (!seasonBlocks) return;
+  seasonCount += 1;
+  const seasonNumber = seasonCount;
+  const block = document.createElement('section');
+  block.className = 'season-block';
+  block.dataset.season = String(seasonNumber);
+  block.innerHTML = `
+    <div class="season-head">
+      <h4>Season ${seasonNumber}</h4>
+      <div class="season-actions">
+        <button class="secondary-btn add-season-episode" type="button">Add episode slot</button>
+        ${seasonNumber > 1 ? '<button class="remove-episode remove-season" type="button">Remove season</button>' : ''}
+      </div>
+    </div>
+    <div class="episode-rows"></div>
+  `;
+  block.querySelector('.add-season-episode').addEventListener('click', () => addEpisodeRow(block));
+  const removeSeason = block.querySelector('.remove-season');
+  if (removeSeason) {
+    removeSeason.addEventListener('click', () => {
+      block.remove();
+      if (!seasonBlocks.children.length) {
+        seasonCount = 0;
+        addSeasonBlock();
+      }
+    });
+  }
+  seasonBlocks.appendChild(block);
+  addEpisodeRow(block);
+  addEpisodeRow(block);
+  addEpisodeRow(block);
 }
 
 if (seriesBatchForm) {
-  addEpisodeRow();
-  addEpisodeRow();
-  addEpisodeRow();
+  addSeasonBlock();
 
-  if (addEpisodeButton) {
-    addEpisodeButton.addEventListener('click', () => addEpisodeRow());
+  if (addSeasonButton) {
+    addSeasonButton.addEventListener('click', () => addSeasonBlock());
   }
 
   seriesBatchForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const episodes = Array.from(episodeRows.querySelectorAll('.episode-row'))
+    const episodes = Array.from(seasonBlocks.querySelectorAll('.episode-row'))
       .map((row) => ({
         label: row.querySelector('.episode-label-input').value.trim(),
         url: row.querySelector('.episode-url-input').value.trim()
@@ -367,11 +409,9 @@ if (seriesBatchForm) {
         return;
       }
       seriesBatchForm.reset();
-      episodeRows.innerHTML = '';
-      episodeSlotCount = 0;
-      addEpisodeRow();
-      addEpisodeRow();
-      addEpisodeRow();
+      seasonBlocks.innerHTML = '';
+      seasonCount = 0;
+      addSeasonBlock();
       loadMovies();
       alert(`Added ${data.added} episode${data.added === 1 ? '' : 's'}`);
     } catch (error) {
