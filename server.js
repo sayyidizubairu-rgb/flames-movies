@@ -45,9 +45,9 @@ function loadMoviesFromFile() {
   }
 }
 
-function saveMovies() {
+function saveMovies(options = {}) {
   if (dbPool) {
-    return queueMoviesDbSave();
+    return queueMoviesDbSave(options);
   }
 
   try {
@@ -92,24 +92,31 @@ async function initializeStorage() {
   }
 }
 
-function queueMoviesDbSave() {
+function queueMoviesDbSave(options = {}) {
   const snapshot = movies.map((movie) => ({ ...movie }));
+  const deletedKeys = new Set(options.deletedKeys || []);
   dbSaveQueue = dbSaveQueue
-    .then(() => saveMoviesToDb(snapshot))
+    .then(async () => {
+      const savedMovies = await saveMoviesToDb(snapshot, deletedKeys);
+      movies = mergeMovieLists(movies, savedMovies, deletedKeys);
+    })
     .catch((err) => {
       console.error('Failed to save movies to database', err);
     });
   return dbSaveQueue;
 }
 
-async function saveMoviesToDb(snapshot) {
-  if (!dbPool) return;
+async function saveMoviesToDb(snapshot, deletedKeys = new Set()) {
+  if (!dbPool) return snapshot;
   const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('LOCK TABLE movies_catalog IN EXCLUSIVE MODE');
+    const existing = await client.query('SELECT data FROM movies_catalog ORDER BY position ASC, updated_at DESC');
+    const merged = mergeMovieLists(snapshot, existing.rows.map((row) => row.data), deletedKeys);
     await client.query('DELETE FROM movies_catalog');
-    for (let index = 0; index < snapshot.length; index++) {
-      const movie = snapshot[index];
+    for (let index = 0; index < merged.length; index++) {
+      const movie = merged[index];
       await client.query(
         `INSERT INTO movies_catalog (key, position, data, updated_at)
          VALUES ($1, $2, $3::jsonb, NOW())`,
@@ -117,12 +124,29 @@ async function saveMoviesToDb(snapshot) {
       );
     }
     await client.query('COMMIT');
+    return merged;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
+}
+
+function mergeMovieLists(primary, secondary, deletedKeys = new Set()) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const list of [primary || [], secondary || []]) {
+    for (const movie of list) {
+      const key = getMovieKey(movie);
+      if (!key || deletedKeys.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(movie);
+    }
+  }
+
+  return merged;
 }
 
 function getCookie(req, name) {
@@ -874,7 +898,7 @@ app.post('/api/admin/movies/delete', requireAdminApi, async (req, res) => {
   if (index === -1) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   const [deleted] = movies.splice(index, 1);
-  await saveMovies();
+  await saveMovies({ deletedKeys: [key] });
   res.json({ ok: true, deleted: normalizeMovieData(deleted) });
 });
 
