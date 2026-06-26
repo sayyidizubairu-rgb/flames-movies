@@ -308,6 +308,13 @@ function getMoviePageHtml(movie) {
   <meta name="twitter:title" content="${title} - Flamez Movies">
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:image" content="${previewImage}">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XGLLH9X3FN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XGLLH9X3FN');
+  </script>
   ${getPublicPageStyles()}
 </head>
 <body>
