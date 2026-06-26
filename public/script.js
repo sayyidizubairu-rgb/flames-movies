@@ -14,6 +14,7 @@ const showInPopular = document.getElementById('showInPopular');
 const submitButton = document.getElementById('submitButton');
 const cancelEditButton = document.getElementById('cancelEditButton');
 const editStatus = document.getElementById('editStatus');
+const adminStats = document.getElementById('adminStats');
 let editingKey = '';
 
 async function loadMovies() {
@@ -22,6 +23,30 @@ async function loadMovies() {
   const response = await fetch(`/api/movies?q=${q}${includeHidden}`);
   movies = await response.json();
   renderMovies(movies);
+  if (adminStats) loadAdminStats();
+}
+
+async function loadAdminStats() {
+  try {
+    const response = await fetch('/api/admin/stats');
+    const data = await response.json();
+    if (!data.ok) return;
+    adminStats.innerHTML = [
+      ['Total entries', data.total_entries],
+      ['Homepage', data.homepage_entries],
+      ['Search-only', data.search_only_entries],
+      ['Popular', data.popular_entries],
+      ['Public cards', data.public_cards],
+      ['Series groups', data.series_groups]
+    ].map(([label, value]) => `
+      <div class="stat-box">
+        <strong>${value}</strong>
+        <span>${label}</span>
+      </div>
+    `).join('');
+  } catch (error) {
+    adminStats.innerHTML = '';
+  }
 }
 
 function renderMovies(list) {

@@ -14,10 +14,15 @@
     button{margin-top:14px;padding:10px 14px;border-radius:10px;border:none;background:#ff4d2d;color:#111;font-weight:700;cursor:pointer}
     .secondary-btn{background:rgba(255,255,255,0.08);color:#e6eef6}
     .muted{color:#94a3b8;font-size:13px;margin-top:8px}
+    .stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+    .stat-box{padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+    .stat-box strong{display:block;font-size:22px;color:#fff}
+    .stat-box span{display:block;margin-top:4px;color:#94a3b8;font-size:12px}
     .edit-status{display:none;margin:10px 0 0;padding:10px;border-radius:8px;background:rgba(255,77,45,0.12);color:#ffb8a8}
     .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .logout{margin:0;background:rgba(255,255,255,0.08);color:#e6eef6}
     a{color:#ffb8a8}
+    @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body>
@@ -32,6 +37,7 @@
       </form>
     </div>
     <p class="muted">Upload a movie file you have the rights to distribute. The file will be stored on this server and added to the catalog.</p>
+    <div id="adminStats" class="stats-grid"></div>
     <div id="editStatus" class="edit-status"></div>
     <form id="uploadForm" method="post" action="/upload" enctype="multipart/form-data">
       <label>Title<input id="uploadTitle" type="text" name="title" placeholder="Movie title" required></label>

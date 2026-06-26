@@ -619,6 +619,20 @@ app.get('/api/movies', async (req, res) => {
   res.json(results);
 });
 
+app.get('/api/admin/stats', requireAdminApi, (req, res) => {
+  const normalized = movies.map(normalizeMovieData);
+  const publicGrouped = groupMoviesForPublic(normalized);
+  res.json({
+    ok: true,
+    total_entries: normalized.length,
+    homepage_entries: normalized.filter((movie) => !movie.search_only).length,
+    search_only_entries: normalized.filter((movie) => movie.search_only).length,
+    popular_entries: normalized.filter((movie) => movie.popular).length,
+    public_cards: publicGrouped.filter((movie) => !movie.search_only).length,
+    series_groups: publicGrouped.filter((movie) => movie.is_series).length
+  });
+});
+
 app.get('/movie', async (req, res) => {
   const key = req.query.key || '';
   const normalized = movies.map(normalizeMovieData);
