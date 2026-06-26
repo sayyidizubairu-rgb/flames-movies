@@ -517,22 +517,36 @@ function groupMoviesForPublic(list) {
 }
 
 function sortSeriesEpisodes(episodes) {
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   return [...episodes].sort((a, b) => {
-    const aNumber = parseEpisodeNumber(a.episode_label || a.title);
-    const bNumber = parseEpisodeNumber(b.episode_label || b.title);
-    if (aNumber !== bNumber) return aNumber - bNumber;
-    return String(a.episode_label || a.title || '').localeCompare(String(b.episode_label || b.title || ''));
+    const aKey = parseEpisodeSortKey(a.episode_label || a.title);
+    const bKey = parseEpisodeSortKey(b.episode_label || b.title);
+    if (aKey.season !== bKey.season) return aKey.season - bKey.season;
+    if (aKey.episode !== bKey.episode) return aKey.episode - bKey.episode;
+    return collator.compare(String(a.episode_label || a.title || ''), String(b.episode_label || b.title || ''));
   });
 }
 
-function parseEpisodeNumber(value) {
+function parseEpisodeSortKey(value) {
   const text = String(value || '');
-  const sxe = text.match(/s\d+\s*e(\d+)/i);
-  if (sxe) return Number(sxe[1]);
+  const missing = { season: Number.MAX_SAFE_INTEGER, episode: Number.MAX_SAFE_INTEGER };
+
+  const sxe = text.match(/\bs(?:eason)?\s*0*(\d+)\s*(?:e|ep|episode)\s*0*(\d+)\b/i);
+  if (sxe) return { season: Number(sxe[1]), episode: Number(sxe[2]) };
+
+  const xFormat = text.match(/\b0*(\d+)\s*x\s*0*(\d+)\b/i);
+  if (xFormat) return { season: Number(xFormat[1]), episode: Number(xFormat[2]) };
+
+  const season = text.match(/\bseason\s*0*(\d+)\b/i);
   const episode = text.match(/\b(?:episode|ep|e)\s*0*(\d+)\b/i);
-  if (episode) return Number(episode[1]);
-  const number = text.match(/\b0*(\d+)\b/);
-  return number ? Number(number[1]) : Number.MAX_SAFE_INTEGER;
+  if (episode) return { season: season ? Number(season[1]) : 0, episode: Number(episode[1]) };
+
+  const numbers = [...text.matchAll(/\b0*(\d+)\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((number) => number < 1900 || number > 2099);
+  if (numbers.length) return { season: 0, episode: numbers[numbers.length - 1] };
+
+  return missing;
 }
 
 function isSearchOnlyValue(value) {
