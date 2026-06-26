@@ -276,12 +276,17 @@ function getMoviePageHtml(movie) {
   const poster = movie.poster ? `style="background-image:url('${escapeHtml(movie.poster)}')"` : '';
   const trailer = movie.trailer_url ? `<iframe class="trailer-frame" src="${escapeHtml(movie.trailer_url)}" title="${title} trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>` : '<div class="trailer-missing">Trailer unavailable for this movie.</div>';
   const episodesHtml = isSeries
-    ? `<section class="info-section" id="episodes"><h2>Episodes</h2><div class="episode-list">${movie.episodes.map((episode, index) => {
-        const episodeTitle = escapeHtml(episode.episode_label || episode.title || `Episode ${index + 1}`);
-        const episodeMeta = [episode.size, episode.quality].filter(Boolean).map(escapeHtml).join(' • ');
-        const episodeUrl = escapeHtml(episode.download_url || episode.url || (episode.id ? `/download/${episode.id}` : '#'));
-        return `<a class="episode-link" href="${episodeUrl}" target="_blank" rel="noopener noreferrer"><span>${episodeTitle}</span><small>${episodeMeta}</small></a>`;
-      }).join('')}</div></section>`
+    ? `<section class="info-section" id="episodes"><h2>Episodes</h2><div class="season-list">${groupEpisodesBySeason(movie.episodes).map((season) => `
+        <section class="season-holder">
+          <div class="season-title"><h3>${escapeHtml(season.title)}</h3><span>${season.episodes.length} episode${season.episodes.length === 1 ? '' : 's'}</span></div>
+          <div class="episode-list">${season.episodes.map((episode, index) => {
+            const episodeTitle = escapeHtml(episode.episode_label || episode.title || `Episode ${index + 1}`);
+            const episodeMeta = [episode.size, episode.quality].filter(Boolean).map(escapeHtml).join(' • ');
+            const episodeUrl = escapeHtml(episode.download_url || episode.url || (episode.id ? `/download/${episode.id}` : '#'));
+            return `<a class="episode-link" href="${episodeUrl}" target="_blank" rel="noopener noreferrer"><span>${episodeTitle}</span><small>${episodeMeta}</small></a>`;
+          }).join('')}</div>
+        </section>
+      `).join('')}</div></section>`
     : '';
   const primaryAction = isSeries
     ? '<a class="download-large" href="#episodes">View episodes</a>'
@@ -338,13 +343,31 @@ function getMoviePageHtml(movie) {
 </html>`;
 }
 
+function groupEpisodesBySeason(episodes) {
+  const groups = new Map();
+  for (const episode of sortSeriesEpisodes(episodes)) {
+    const sortKey = parseEpisodeSortKey(episode.episode_label || episode.title);
+    const season = sortKey.season === Number.MAX_SAFE_INTEGER ? 1 : sortKey.season;
+    if (!groups.has(season)) {
+      groups.set(season, {
+        title: `Season ${season}`,
+        episodes: []
+      });
+    }
+    groups.get(season).episodes.push(episode);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, group]) => group);
+}
+
 function getPublicPageStyles() {
   return `<style>
     :root{--bg:#090d14;--muted:#9ca3af;--text:#f8fafc;--accent:#ff4d2d;--accent-2:#ff8c42;--max-width:1240px}
     *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at top,rgba(255,77,45,.12),transparent 24%),linear-gradient(180deg,#090d14 0%,#020406 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     a{color:inherit}.page-header{padding:24px 28px;background:rgba(6,10,18,.8);border-bottom:1px solid rgba(255,255,255,.04)}.nav-inner{max-width:var(--max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand{display:flex;align-items:center;gap:14px;text-decoration:none}.brand-icon{width:46px;height:46px;border-radius:16px;object-fit:cover;box-shadow:0 10px 24px rgba(255,77,45,.22);flex:0 0 auto}.brand-title{display:grid;line-height:1.1;font-weight:800}.brand-title span{font-size:.82rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}.nav-link,.back-link{color:#ffb8a8;text-decoration:none}
-    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.episode-list{display:grid;gap:10px}.episode-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#fff;text-decoration:none;font-weight:800}.episode-link small{color:var(--muted);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
+    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.season-list{display:grid;gap:16px}.season-holder{padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.season-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.season-title h3{margin:0;font-size:1.05rem}.season-title span{color:var(--muted);font-size:.82rem;font-weight:800}.episode-list{display:grid;gap:10px}.episode-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#fff;text-decoration:none;font-weight:800}.episode-link small{color:var(--muted);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
     @media(max-width:760px){.detail-grid{grid-template-columns:1fr}.detail-poster{min-height:420px}.detail-wrap{padding:18px}}
   </style>`;
 }
