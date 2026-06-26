@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">Flamez Movies</title>
+  <defs>
+    <linearGradient id="flame" x1="30" y1="15" x2="91" y2="105" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffb02e"/>
+      <stop offset=".48" stop-color="#ff4d2d"/>
+      <stop offset="1" stop-color="#c91f12"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="40" y1="38" x2="91" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff7e7"/>
+      <stop offset=".5" stop-color="#b8c0cc"/>
+      <stop offset="1" stop-color="#505b68"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="#05070b"/>
+  <circle cx="60" cy="60" r="48" fill="#0b0f17" stroke="#ff6b2c" stroke-width="5"/>
+  <path d="M61 18c13 14 9 24 3 35 11-6 14-17 12-27 18 15 24 32 14 52-6 13-18 21-32 21-19 0-34-13-34-31 0-13 8-23 19-34-2 12 2 20 11 24-4-15 0-27 7-40z" fill="url(#flame)"/>
+  <path d="M25 79l15-48h42l-5 16H52l-3 10h23l-5 15H44l-8 25H21l4-18z" fill="url(#flame)"/>
+  <path d="M61 79h32l-5 17H42l27-35H51l5-16h42L61 79z" fill="url(#metal)"/>
+  <circle cx="82" cy="84" r="13" fill="#10131a" stroke="#ff6b2c" stroke-width="4"/>
+  <path d="M78 76l13 8-13 8V76z" fill="#ff6b2c"/>
+</svg>
