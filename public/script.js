@@ -19,12 +19,18 @@ let editingKey = '';
 let searchTimer = null;
 
 async function loadMovies() {
-  const q = encodeURIComponent(searchInput ? (searchInput.value || '') : '');
-  const includeHidden = uploadForm ? '&include_hidden=1' : '';
-  const response = await fetch(`/api/movies?q=${q}${includeHidden}`);
-  movies = await response.json();
-  renderMovies(movies);
-  if (adminStats) loadAdminStats();
+  try {
+    const q = encodeURIComponent(searchInput ? (searchInput.value || '') : '');
+    const includeHidden = uploadForm ? '&include_hidden=1' : '';
+    const response = await fetch(`/api/movies?q=${q}${includeHidden}`);
+    const data = await response.json();
+    movies = Array.isArray(data) ? data : [];
+    renderMovies(movies);
+    if (adminStats) loadAdminStats();
+  } catch (error) {
+    movies = [];
+    renderMovies(movies);
+  }
 }
 
 async function loadAdminStats() {
@@ -53,43 +59,52 @@ async function loadAdminStats() {
 function renderMovies(list) {
   movieGrid.innerHTML = list
     .map(
-      (movie) => `
+      (movie) => {
+        const key = encodeURIComponent(movie.key || movie.url || movie.id || movie.title || '');
+        const title = movie.title || 'Untitled';
+        const description = movie.description || '';
+        const seriesMeta = movie.series_title ? `Series: ${movie.series_title}${movie.episode_label ? ` - ${movie.episode_label}` : ''} - ` : '';
+        const statusMeta = `${seriesMeta}${movie.search_only ? 'Search only' : 'Homepage'}${movie.popular ? ' - Popular' : ''}`;
+        const url = movie.url ? escapeAttr(movie.url) : '';
+        const downloadId = escapeAttr(movie.id || '');
+        return `
     <article class="movie-card">
       <div>
-        <h3>${movie.title}</h3>
-        <p>${movie.description}</p>
-        <small>${movie.series_title ? `Series: ${movie.series_title}${movie.episode_label ? ` • ${movie.episode_label}` : ''} • ` : ''}${movie.search_only ? 'Search only' : 'Homepage'}${movie.popular ? ' • Popular' : ''}</small>
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(description)}</p>
+        <small>${escapeHtml(statusMeta)}</small>
       </div>
       <div class="movie-meta">
-        <span>${movie.size}</span>
+        <span>${escapeHtml(movie.size || '-')}</span>
         ${uploadForm ? `
-        <button type="button" data-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-search-only="${movie.search_only ? '0' : '1'}">
+        <button type="button" data-key="${key}" data-search-only="${movie.search_only ? '0' : '1'}">
           ${movie.search_only ? 'Show on homepage' : 'Make search-only'}
         </button>
-        <button type="button" data-popular-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-popular="${movie.popular ? '0' : '1'}">
+        <button type="button" data-popular-key="${key}" data-popular="${movie.popular ? '0' : '1'}">
           ${movie.popular ? 'Remove from popular' : 'Add to popular'}
         </button>
-        <button type="button" data-edit-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
+        <button type="button" data-edit-key="${key}">
           Edit
         </button>
-        <button type="button" data-refresh-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}">
+        <button type="button" data-refresh-key="${key}">
           Refresh TMDb
         </button>
-        <button type="button" data-delete-key="${encodeURIComponent(movie.key || movie.url || movie.id || movie.title)}" data-delete-title="${encodeURIComponent(movie.title || 'Untitled')}">
+        <button type="button" data-delete-key="${key}" data-delete-title="${encodeURIComponent(title)}">
           Delete movie
         </button>
         ` : ''}
         ${movie.url ? `
-        <a class="download-btn" href="${movie.url}" target="_blank" rel="noopener noreferrer">
+        <a class="download-btn" href="${url}" target="_blank" rel="noopener noreferrer">
           Open Link
         </a>
         ` : `
-        <a class="download-btn" href="/download/${movie.id}" download>
+        <a class="download-btn" href="/download/${downloadId}" download>
           Download
         </a>
         `}
       </div>
-    </article>`
+    </article>`;
+      }
     )
     .join('');
 
@@ -274,7 +289,7 @@ if (uploadForm) {
       loadMovies();
       alert('Upload added');
     } else {
-      alert('Upload failed');
+      alert(data.error || 'Upload failed');
     }
   });
 }
@@ -287,3 +302,11 @@ if (searchInput) {
 }
 
 loadMovies();
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}

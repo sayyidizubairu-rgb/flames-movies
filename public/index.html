@@ -237,7 +237,7 @@
 
     function setupFilters() {
       const genres = Array.from(new Set(movies.map(m => m.genre).filter(Boolean))).sort();
-      genreFilter.innerHTML = '<option value="">All genres</option>' + genres.map(genre => `<option value="${genre}">${genre}</option>`).join('');
+      genreFilter.innerHTML = '<option value="">All genres</option>' + genres.map(genre => `<option value="${escapeAttr(genre)}">${escapeHtml(genre)}</option>`).join('');
     }
 
     searchInput.addEventListener('input', (event) => {

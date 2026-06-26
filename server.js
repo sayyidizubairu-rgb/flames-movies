@@ -54,6 +54,7 @@ function saveMovies(options = {}) {
     fs.writeFileSync(moviesFile, JSON.stringify(movies, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to save movies.json', err);
+    return Promise.reject(err);
   }
   return Promise.resolve();
 }
@@ -95,15 +96,18 @@ async function initializeStorage() {
 function queueMoviesDbSave(options = {}) {
   const snapshot = movies.map((movie) => ({ ...movie }));
   const deletedKeys = new Set(options.deletedKeys || []);
-  dbSaveQueue = dbSaveQueue
+  const saveTask = dbSaveQueue
+    .catch(() => {})
     .then(async () => {
       const savedMovies = await saveMoviesToDb(snapshot, deletedKeys);
       movies = mergeMovieLists(movies, savedMovies, deletedKeys);
     })
     .catch((err) => {
       console.error('Failed to save movies to database', err);
+      throw err;
     });
-  return dbSaveQueue;
+  dbSaveQueue = saveTask.catch(() => {});
+  return saveTask;
 }
 
 async function saveMoviesToDb(snapshot, deletedKeys = new Set()) {
@@ -147,6 +151,18 @@ function mergeMovieLists(primary, secondary, deletedKeys = new Set()) {
   }
 
   return merged;
+}
+
+async function addMovieToCatalog(movie) {
+  movies.unshift(movie);
+  try {
+    await saveMovies();
+  } catch (err) {
+    const index = movies.indexOf(movie);
+    if (index !== -1) movies.splice(index, 1);
+    throw err;
+  }
+  return movie;
 }
 
 function getCookie(req, name) {
@@ -747,8 +763,7 @@ app.post('/upload', requireAdminApi, (req, res) => {
               const externalUrl = upJson.data.downloadPage || upJson.data.link || null;
               const movie = applySeriesFields({ id: null, url: externalUrl, title, description, size, search_only: searchOnly, popular }, req.body);
               try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
-              movies.unshift(movie);
-              await saveMovies();
+              await addMovieToCatalog(movie);
               // remove local file copy
               try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
               return res.json({ ok: true, movie, uploadedTo: 'gofile' });
@@ -756,16 +771,14 @@ app.post('/upload', requireAdminApi, (req, res) => {
               console.error('gofile upload failed', upJson);
               const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
               try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
-              movies.unshift(movie);
-              await saveMovies();
+              await addMovieToCatalog(movie);
               return res.json({ ok: true, movie, warning: 'gofile upload failed, stored locally' });
             }
           } catch (e) {
             console.error('gofile integration error', e);
             const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
             try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
-            movies.unshift(movie);
-            await saveMovies();
+            await addMovieToCatalog(movie);
             return res.json({ ok: true, movie, warning: 'gofile integration error, stored locally' });
           }
         }
@@ -773,10 +786,12 @@ app.post('/upload', requireAdminApi, (req, res) => {
         // default: keep local file and save metadata
         const movie = applySeriesFields({ id, title, description, size, search_only: searchOnly, popular }, req.body);
         try { await applyTmdbMetadata(movie, { overwritePoster: true }); } catch (e) {}
-        movies.unshift(movie);
-        await saveMovies();
+        await addMovieToCatalog(movie);
         return res.json({ ok: true, movie });
-      })();
+      })().catch((e) => {
+        console.error('upload processing error', e);
+        if (!res.headersSent) res.status(500).json({ ok: false, error: 'Upload failed while saving the catalog.' });
+      });
       return;
     }
 
@@ -790,10 +805,12 @@ app.post('/upload', requireAdminApi, (req, res) => {
           series_title: req.body.series_title,
           episode_label: req.body.episode_label
         });
-        movies.unshift(movie);
-        await saveMovies();
+        await addMovieToCatalog(movie);
         return res.json({ ok: true, movie });
-      })();
+      })().catch((e) => {
+        console.error('link upload processing error', e);
+        if (!res.headersSent) res.status(500).json({ ok: false, error: 'Link upload failed while saving the catalog.' });
+      });
       return;
     }
 
@@ -808,9 +825,16 @@ app.post('/api/admin/movies/visibility', requireAdminApi, async (req, res) => {
   const movie = movies.find((item) => getMovieKey(item) === key);
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
+  const previousSearchOnly = movie.search_only;
   movie.search_only = isSearchOnlyValue(req.body.search_only);
-  await saveMovies();
-  res.json({ ok: true, movie: normalizeMovieData(movie) });
+  try {
+    await saveMovies();
+    res.json({ ok: true, movie: normalizeMovieData(movie) });
+  } catch (e) {
+    movie.search_only = previousSearchOnly;
+    console.error('visibility save error', e);
+    res.status(500).json({ ok: false, error: 'Visibility update failed while saving.' });
+  }
 });
 
 app.post('/api/admin/movies/popular', requireAdminApi, async (req, res) => {
@@ -820,9 +844,16 @@ app.post('/api/admin/movies/popular', requireAdminApi, async (req, res) => {
   const movie = movies.find((item) => getMovieKey(item) === key);
   if (!movie) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
+  const previousPopular = movie.popular;
   movie.popular = isSearchOnlyValue(req.body.popular);
-  await saveMovies();
-  res.json({ ok: true, movie: normalizeMovieData(movie) });
+  try {
+    await saveMovies();
+    res.json({ ok: true, movie: normalizeMovieData(movie) });
+  } catch (e) {
+    movie.popular = previousPopular;
+    console.error('popular save error', e);
+    res.status(500).json({ ok: false, error: 'Popular update failed while saving.' });
+  }
 });
 
 app.post('/api/admin/movies/update', requireAdminApi, async (req, res) => {
@@ -866,9 +897,16 @@ app.post('/api/admin/movies/update', requireAdminApi, async (req, res) => {
     return res.status(409).json({ ok: false, error: 'Another movie already uses that title or link' });
   }
 
+  const previousMovie = { ...movie };
   Object.assign(movie, candidate);
-  await saveMovies();
-  res.json({ ok: true, movie: normalizeMovieData(movie) });
+  try {
+    await saveMovies();
+    res.json({ ok: true, movie: normalizeMovieData(movie) });
+  } catch (e) {
+    Object.assign(movie, previousMovie);
+    console.error('movie update save error', e);
+    res.status(500).json({ ok: false, error: 'Movie update failed while saving.' });
+  }
 });
 
 app.post('/api/admin/movies/refresh-metadata', requireAdminApi, async (req, res) => {
@@ -898,8 +936,14 @@ app.post('/api/admin/movies/delete', requireAdminApi, async (req, res) => {
   if (index === -1) return res.status(404).json({ ok: false, error: 'Movie not found' });
 
   const [deleted] = movies.splice(index, 1);
-  await saveMovies({ deletedKeys: [key] });
-  res.json({ ok: true, deleted: normalizeMovieData(deleted) });
+  try {
+    await saveMovies({ deletedKeys: [key] });
+    res.json({ ok: true, deleted: normalizeMovieData(deleted) });
+  } catch (e) {
+    movies.splice(index, 0, deleted);
+    console.error('movie delete save error', e);
+    res.status(500).json({ ok: false, error: 'Movie delete failed while saving.' });
+  }
 });
 
 function getMovieKey(movie) {
@@ -1054,13 +1098,18 @@ app.get('/import-meetdownload', requireAdminApi, async (req, res) => {
     const movie = await buildMeetdownloadMovie(url);
     const existing = movies.find((m) => m.url === movie.url);
     if (existing) {
+      const previousMovie = { ...existing };
       Object.assign(existing, { ...movie, id: existing.id || movie.id });
-      await saveMovies();
-      return res.json({ ok: true, added: false, movie: existing });
+      try {
+        await saveMovies();
+        return res.json({ ok: true, added: false, movie: existing });
+      } catch (e) {
+        Object.assign(existing, previousMovie);
+        throw e;
+      }
     }
 
-    movies.unshift(movie);
-    await saveMovies();
+    await addMovieToCatalog(movie);
     return res.json({ ok: true, added: true, movie });
   } catch (e) {
     console.error('import-meetdownload error', e);
