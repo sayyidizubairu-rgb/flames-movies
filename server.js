@@ -255,6 +255,9 @@ function getMoviePageHtml(movie) {
   const episodeCount = isSeries ? `${movie.episodes.length} episode${movie.episodes.length === 1 ? '' : 's'}` : '';
   const meta = [movie.year || 'Unknown', movie.genre || 'Unknown', movie.rating ? `Rating ${movie.rating}` : '', episodeCount || movie.size || ''].filter(Boolean).map(escapeHtml).join(' • ');
   const downloadUrl = escapeHtml(movie.download_url || movie.url || (movie.id ? `/download/${movie.id}` : '#'));
+  const rawPreviewImage = movie.poster || '/social-preview.png';
+  const previewImage = escapeHtml(rawPreviewImage.startsWith('/') ? `https://www.flamezmovies.com${rawPreviewImage}` : rawPreviewImage);
+  const pageUrl = escapeHtml(`https://www.flamezmovies.com/movie?key=${encodeURIComponent(movie.key || getMovieKey(movie) || '')}`);
   const poster = movie.poster ? `style="background-image:url('${escapeHtml(movie.poster)}')"` : '';
   const trailer = movie.trailer_url ? `<iframe class="trailer-frame" src="${escapeHtml(movie.trailer_url)}" title="${title} trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>` : '<div class="trailer-missing">Trailer unavailable for this movie.</div>';
   const episodesHtml = isSeries
@@ -275,6 +278,16 @@ function getMoviePageHtml(movie) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${title} - Flamez Movies</title>
+  <meta name="description" content="${description}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${pageUrl}">
+  <meta property="og:title" content="${title} - Flamez Movies">
+  <meta property="og:description" content="${description}">
+  <meta property="og:image" content="${previewImage}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title} - Flamez Movies">
+  <meta name="twitter:description" content="${description}">
+  <meta name="twitter:image" content="${previewImage}">
   ${getPublicPageStyles()}
 </head>
 <body>
