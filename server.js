@@ -532,14 +532,14 @@ function parseEpisodeSortKey(value) {
   const missing = { season: Number.MAX_SAFE_INTEGER, episode: Number.MAX_SAFE_INTEGER };
 
   const sxe = text.match(/\bs(?:eason)?\s*0*(\d+)\s*(?:e|ep|episode)\s*0*(\d+)\b/i);
-  if (sxe) return { season: Number(sxe[1]), episode: Number(sxe[2]) };
+  if (sxe) return { season: normalizeSeasonNumber(sxe[1]), episode: Number(sxe[2]) };
 
   const xFormat = text.match(/\b0*(\d+)\s*x\s*0*(\d+)\b/i);
-  if (xFormat) return { season: Number(xFormat[1]), episode: Number(xFormat[2]) };
+  if (xFormat) return { season: normalizeSeasonNumber(xFormat[1]), episode: Number(xFormat[2]) };
 
   const season = text.match(/\bseason\s*0*(\d+)\b/i);
   const episode = text.match(/\b(?:episode|ep|e)\s*0*(\d+)\b/i);
-  if (episode) return { season: season ? Number(season[1]) : 0, episode: Number(episode[1]) };
+  if (episode) return { season: season ? normalizeSeasonNumber(season[1]) : 1, episode: Number(episode[1]) };
 
   const numbers = [...text.matchAll(/\b0*(\d+)\b/g)]
     .map((match) => Number(match[1]))
@@ -547,6 +547,11 @@ function parseEpisodeSortKey(value) {
   if (numbers.length) return { season: 0, episode: numbers[numbers.length - 1] };
 
   return missing;
+}
+
+function normalizeSeasonNumber(value) {
+  const season = Number(value);
+  return Number.isFinite(season) && season > 0 ? season : 1;
 }
 
 function isSearchOnlyValue(value) {
