@@ -236,6 +236,15 @@ async function recordSiteVisit(req, payload = {}) {
   };
 
   if (dbPool) {
+    const recent = await dbPool.query(
+      `SELECT 1 FROM site_visits
+       WHERE visitor_hash = $1
+         AND created_at >= NOW() - INTERVAL '30 minutes'
+       LIMIT 1`,
+      [visit.visitor_hash]
+    );
+    if (recent.rowCount) return;
+
     await dbPool.query(
       `INSERT INTO site_visits (visitor_hash, path, title, referrer, user_agent)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -243,6 +252,11 @@ async function recordSiteVisit(req, payload = {}) {
     );
     return;
   }
+
+  const recentMemoryVisit = memoryVisits.some((item) => {
+    return item.visitor_hash === visit.visitor_hash && item.created_at.getTime() >= Date.now() - 30 * 60 * 1000;
+  });
+  if (recentMemoryVisit) return;
 
   memoryVisits.push(visit);
   if (memoryVisits.length > 5000) memoryVisits = memoryVisits.slice(-5000);

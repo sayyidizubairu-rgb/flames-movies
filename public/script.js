@@ -74,9 +74,9 @@ async function loadTrafficStats() {
     if (!data.ok) return;
     trafficStats.innerHTML = [
       ['Active now', data.active_30m],
-      ['Visits today', data.visits_today],
-      ['Last 7 days', data.visits_7d],
-      ['Total visits', data.total_visits]
+      ['Sessions today', data.visits_today],
+      ['Sessions 7 days', data.visits_7d],
+      ['Total sessions', data.total_visits]
     ].map(([label, value]) => `
       <div class="stat-box">
         <strong>${value}</strong>
