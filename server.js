@@ -35,6 +35,7 @@ const moviesFile = path.join(__dirname, 'movies.json');
 let movies = [];
 let dbPool = null;
 let dbSaveQueue = Promise.resolve();
+let memoryVisits = [];
 
 function loadMoviesFromFile() {
   try {
@@ -78,6 +79,21 @@ async function initializeStorage() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS site_visits (
+      id BIGSERIAL PRIMARY KEY,
+      visitor_hash TEXT NOT NULL,
+      path TEXT NOT NULL,
+      title TEXT,
+      referrer TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await dbPool.query('CREATE INDEX IF NOT EXISTS site_visits_created_at_idx ON site_visits (created_at DESC)');
+  await dbPool.query('CREATE INDEX IF NOT EXISTS site_visits_visitor_hash_idx ON site_visits (visitor_hash)');
 
   const result = await dbPool.query('SELECT data FROM movies_catalog ORDER BY position ASC, updated_at DESC');
   if (result.rows.length) {
@@ -189,6 +205,72 @@ function getCookie(req, name) {
     if (cookie.slice(0, index) === name) return decodeURIComponent(cookie.slice(index + 1));
   }
   return '';
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || '';
+}
+
+function getVisitorHash(req) {
+  const raw = `${getClientIp(req)}|${req.headers['user-agent'] || ''}|${ADMIN_SESSION_SECRET}`;
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
+function cleanVisitPath(value) {
+  const pathValue = String(value || '/').trim().slice(0, 300);
+  return pathValue.startsWith('/') ? pathValue : '/';
+}
+
+async function recordSiteVisit(req, payload = {}) {
+  const visit = {
+    visitor_hash: getVisitorHash(req),
+    path: cleanVisitPath(payload.path),
+    title: String(payload.title || '').trim().slice(0, 160),
+    referrer: String(payload.referrer || '').trim().slice(0, 300),
+    user_agent: String(req.headers['user-agent'] || '').trim().slice(0, 300),
+    created_at: new Date()
+  };
+
+  if (dbPool) {
+    await dbPool.query(
+      `INSERT INTO site_visits (visitor_hash, path, title, referrer, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [visit.visitor_hash, visit.path, visit.title, visit.referrer, visit.user_agent]
+    );
+    return;
+  }
+
+  memoryVisits.push(visit);
+  if (memoryVisits.length > 5000) memoryVisits = memoryVisits.slice(-5000);
+}
+
+async function getTrafficStats() {
+  if (dbPool) {
+    const result = await dbPool.query(`
+      SELECT
+        COUNT(*)::int AS total_visits,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')::int AS visits_today,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS visits_7d,
+        COUNT(DISTINCT visitor_hash) FILTER (WHERE created_at >= NOW() - INTERVAL '30 minutes')::int AS active_30m
+      FROM site_visits
+    `);
+    return result.rows[0] || { total_visits: 0, visits_today: 0, visits_7d: 0, active_30m: 0 };
+  }
+
+  const now = Date.now();
+  const since30m = now - 30 * 60 * 1000;
+  const since1d = now - 24 * 60 * 60 * 1000;
+  const since7d = now - 7 * 24 * 60 * 60 * 1000;
+  return {
+    total_visits: memoryVisits.length,
+    visits_today: memoryVisits.filter((visit) => visit.created_at.getTime() >= since1d).length,
+    visits_7d: memoryVisits.filter((visit) => visit.created_at.getTime() >= since7d).length,
+    active_30m: new Set(memoryVisits.filter((visit) => visit.created_at.getTime() >= since30m).map((visit) => visit.visitor_hash)).size
+  };
 }
 
 function signAdminToken() {
@@ -346,6 +428,20 @@ function getMoviePageHtml(movie) {
       </section>
     </section>
   </main>
+  <script>
+    try {
+      fetch('/api/track-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: window.location.pathname + window.location.search,
+          title: document.title,
+          referrer: document.referrer
+        }),
+        keepalive: true
+      });
+    } catch (error) {}
+  </script>
 </body>
 </html>`;
 }
@@ -655,6 +751,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.post('/api/track-visit', async (req, res) => {
+  try {
+    await recordSiteVisit(req, req.body || {});
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('track visit error', e);
+    res.status(204).end();
+  }
+});
+
 app.get('/upload.html', (req, res) => {
   res.redirect('/admin');
 });
@@ -748,6 +854,16 @@ app.get('/api/admin/stats', requireAdminApi, (req, res) => {
     public_cards: publicGrouped.filter((movie) => !movie.search_only).length,
     series_groups: publicGrouped.filter((movie) => movie.is_series).length
   });
+});
+
+app.get('/api/admin/traffic', requireAdminApi, async (req, res) => {
+  try {
+    const stats = await getTrafficStats();
+    res.json({ ok: true, ...stats });
+  } catch (e) {
+    console.error('traffic stats error', e);
+    res.status(500).json({ ok: false, error: 'Unable to load traffic stats' });
+  }
 });
 
 app.get('/movie', async (req, res) => {

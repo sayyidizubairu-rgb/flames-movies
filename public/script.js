@@ -15,6 +15,7 @@ const submitButton = document.getElementById('submitButton');
 const cancelEditButton = document.getElementById('cancelEditButton');
 const editStatus = document.getElementById('editStatus');
 const adminStats = document.getElementById('adminStats');
+const trafficStats = document.getElementById('trafficStats');
 const seriesBatchForm = document.getElementById('seriesBatchForm');
 const batchSeriesTitle = document.getElementById('batchSeriesTitle');
 const batchDescription = document.getElementById('batchDescription');
@@ -36,6 +37,7 @@ async function loadMovies() {
     movies = Array.isArray(data) ? data : [];
     renderMovies(movies);
     if (adminStats) loadAdminStats();
+    if (trafficStats) loadTrafficStats();
   } catch (error) {
     movies = [];
     renderMovies(movies);
@@ -62,6 +64,27 @@ async function loadAdminStats() {
     `).join('');
   } catch (error) {
     adminStats.innerHTML = '';
+  }
+}
+
+async function loadTrafficStats() {
+  try {
+    const response = await fetch('/api/admin/traffic');
+    const data = await response.json();
+    if (!data.ok) return;
+    trafficStats.innerHTML = [
+      ['Active now', data.active_30m],
+      ['Visits today', data.visits_today],
+      ['Last 7 days', data.visits_7d],
+      ['Total visits', data.total_visits]
+    ].map(([label, value]) => `
+      <div class="stat-box">
+        <strong>${value}</strong>
+        <span>${label}</span>
+      </div>
+    `).join('');
+  } catch (error) {
+    trafficStats.innerHTML = '';
   }
 }
 

@@ -335,7 +335,23 @@
       return String(number);
     }
 
+    function trackVisit() {
+      try {
+        fetch('/api/track-visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: window.location.pathname + window.location.search,
+            title: document.title,
+            referrer: document.referrer
+          }),
+          keepalive: true
+        });
+      } catch (error) {}
+    }
+
     loadMovies();
+    trackVisit();
   </script>
 </body>
 </html>
