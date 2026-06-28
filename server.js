@@ -1121,6 +1121,7 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
   const originalKeys = new Map(originalEpisodes.map((movie) => [movie, getMovieKey(movie)]));
   const addedMovies = [];
   const removedMovies = [];
+  const replacedKeys = new Set();
 
   try {
     for (const episode of validEpisodes) {
@@ -1146,6 +1147,9 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
         else delete existing.episode_title;
         existing.search_only = isSearchOnlyValue(req.body.search_only);
         existing.popular = isSearchOnlyValue(req.body.popular);
+        const originalKey = originalKeys.get(existing);
+        const nextKey = getMovieKey(existing);
+        if (originalKey && nextKey !== originalKey) replacedKeys.add(originalKey);
       } else {
         const conflicting = movies.find((movie) => movie.url === episode.url);
         if (conflicting) {
@@ -1175,10 +1179,11 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
       const index = movies.indexOf(movie);
       if (index === -1) continue;
       removedMovies.push({ movie, index });
+      replacedKeys.add(key);
       movies.splice(index, 1);
     }
 
-    await saveMovies();
+    await saveMovies({ deletedKeys: Array.from(replacedKeys) });
     res.json({ ok: true, updated: validEpisodes.length, removed: removedMovies.length });
   } catch (e) {
     for (const [movie, snapshot] of snapshots.entries()) {
@@ -1278,7 +1283,7 @@ app.post('/api/admin/movies/update', requireAdminApi, async (req, res) => {
   const previousMovie = { ...movie };
   Object.assign(movie, candidate);
   try {
-    await saveMovies();
+    await saveMovies({ deletedKeys: nextKey !== originalKey ? [originalKey] : [] });
     res.json({ ok: true, movie: normalizeMovieData(movie) });
   } catch (e) {
     Object.assign(movie, previousMovie);
