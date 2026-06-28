@@ -24,7 +24,9 @@ const addSeasonButton = document.getElementById('addSeasonButton');
 const batchShowOnHomepage = document.getElementById('batchShowOnHomepage');
 const batchShowInPopular = document.getElementById('batchShowInPopular');
 const batchSubmitButton = document.getElementById('batchSubmitButton');
+const cancelSeriesEditButton = document.getElementById('cancelSeriesEditButton');
 let editingKey = '';
+let editingSeriesTitle = '';
 let searchTimer = null;
 let seasonCount = 0;
 
@@ -185,6 +187,10 @@ function renderMovies(list) {
           alert('Movie not found');
           return;
         }
+        if (movie.series_title) {
+          startSeriesEdit(movie.series_title);
+          return;
+        }
         startEdit(movie);
       });
     });
@@ -254,6 +260,64 @@ function stopEdit() {
   if (submitButton) submitButton.textContent = 'Upload';
   if (cancelEditButton) cancelEditButton.hidden = true;
   if (editStatus) {
+    editStatus.textContent = '';
+    editStatus.style.display = 'none';
+  }
+}
+
+function startSeriesEdit(seriesName) {
+  if (!seriesBatchForm || !seasonBlocks) return;
+  if (editingKey) stopEdit();
+  const seriesEpisodes = movies
+    .filter((item) => item.series_title === seriesName)
+    .sort(compareEpisodeLabels);
+  if (!seriesEpisodes.length) {
+    alert('Series episodes not found');
+    return;
+  }
+
+  editingSeriesTitle = seriesName;
+  const firstEpisode = seriesEpisodes[0];
+  batchSeriesTitle.value = seriesName;
+  batchDescription.value = firstEpisode.description || '';
+  if (batchShowOnHomepage) batchShowOnHomepage.checked = seriesEpisodes.some((episode) => !episode.search_only);
+  if (batchShowInPopular) batchShowInPopular.checked = seriesEpisodes.some((episode) => episode.popular);
+
+  seasonBlocks.innerHTML = '';
+  seasonCount = 0;
+  const seasons = new Map();
+  for (const episode of seriesEpisodes) {
+    const seasonNumber = parseSeasonNumber(episode.episode_label || episode.title);
+    if (!seasons.has(seasonNumber)) {
+      seasons.set(seasonNumber, addSeasonBlock(seasonNumber, false));
+    }
+    addEpisodeRow(
+      seasons.get(seasonNumber),
+      episode.url || episode.download_url || '',
+      episode.episode_label || '',
+      episode.key || episode.url || episode.id || episode.title || ''
+    );
+  }
+
+  if (batchSubmitButton) batchSubmitButton.textContent = 'Save series changes';
+  if (cancelSeriesEditButton) cancelSeriesEditButton.hidden = false;
+  if (editStatus) {
+    editStatus.textContent = `Editing series: ${seriesName}`;
+    editStatus.style.display = 'block';
+  }
+  seriesBatchForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function stopSeriesEdit() {
+  editingSeriesTitle = '';
+  if (!seriesBatchForm || !seasonBlocks) return;
+  seriesBatchForm.reset();
+  seasonBlocks.innerHTML = '';
+  seasonCount = 0;
+  addSeasonBlock();
+  if (batchSubmitButton) batchSubmitButton.textContent = 'Upload series episodes';
+  if (cancelSeriesEditButton) cancelSeriesEditButton.hidden = true;
+  if (!editingKey && editStatus) {
     editStatus.textContent = '';
     editStatus.style.display = 'none';
   }
@@ -334,15 +398,17 @@ function getSeasonNumber(seasonBlock) {
   return Number(seasonBlock.dataset.season || '1') || 1;
 }
 
-function addEpisodeRow(seasonBlock, url = '') {
+function addEpisodeRow(seasonBlock, url = '', label = '', key = '') {
   const rows = seasonBlock && seasonBlock.querySelector('.episode-rows');
   if (!rows) return;
   const seasonNumber = getSeasonNumber(seasonBlock);
   const episodeNumber = rows.children.length + 1;
+  const episodeLabelValue = label || getEpisodeLabel(seasonNumber, episodeNumber);
   const row = document.createElement('div');
   row.className = 'episode-row';
   row.innerHTML = `
-    <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}" placeholder="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}"></label>
+    <input class="episode-key-input" type="hidden" value="${escapeAttr(key)}">
+    <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(episodeLabelValue)}" placeholder="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}"></label>
     <label>Episode link<input class="episode-url-input" type="url" value="${escapeAttr(url)}" placeholder="https://example.com/episode-link"></label>
     <button class="remove-episode" type="button">Remove</button>
   `;
@@ -353,10 +419,10 @@ function addEpisodeRow(seasonBlock, url = '') {
   rows.appendChild(row);
 }
 
-function addSeasonBlock() {
+function addSeasonBlock(seasonNumber = null, addDefaultRows = true) {
   if (!seasonBlocks) return;
-  seasonCount += 1;
-  const seasonNumber = seasonCount;
+  seasonNumber = seasonNumber || seasonCount + 1;
+  seasonCount = Math.max(seasonCount, seasonNumber);
   const block = document.createElement('section');
   block.className = 'season-block';
   block.dataset.season = String(seasonNumber);
@@ -382,9 +448,12 @@ function addSeasonBlock() {
     });
   }
   seasonBlocks.appendChild(block);
-  addEpisodeRow(block);
-  addEpisodeRow(block);
-  addEpisodeRow(block);
+  if (addDefaultRows) {
+    addEpisodeRow(block);
+    addEpisodeRow(block);
+    addEpisodeRow(block);
+  }
+  return block;
 }
 
 if (seriesBatchForm) {
@@ -394,10 +463,15 @@ if (seriesBatchForm) {
     addSeasonButton.addEventListener('click', () => addSeasonBlock());
   }
 
+  if (cancelSeriesEditButton) {
+    cancelSeriesEditButton.addEventListener('click', stopSeriesEdit);
+  }
+
   seriesBatchForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const episodes = Array.from(seasonBlocks.querySelectorAll('.episode-row'))
       .map((row) => ({
+        key: row.querySelector('.episode-key-input').value.trim(),
         label: row.querySelector('.episode-label-input').value.trim(),
         url: row.querySelector('.episode-url-input').value.trim()
       }))
@@ -415,10 +489,11 @@ if (seriesBatchForm) {
 
     if (batchSubmitButton) batchSubmitButton.disabled = true;
     try {
-      const response = await fetch('/api/admin/series/batch', {
+      const response = await fetch(editingSeriesTitle ? '/api/admin/series/update' : '/api/admin/series/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          original_series_title: editingSeriesTitle,
           series_title: batchSeriesTitle.value.trim(),
           description: batchDescription.value.trim(),
           episodes,
@@ -431,12 +506,15 @@ if (seriesBatchForm) {
         alert(data.error || 'Series upload failed');
         return;
       }
-      seriesBatchForm.reset();
-      seasonBlocks.innerHTML = '';
-      seasonCount = 0;
-      addSeasonBlock();
+      const wasEditing = Boolean(editingSeriesTitle);
+      stopSeriesEdit();
       loadMovies();
-      alert(`Added ${data.added} episode${data.added === 1 ? '' : 's'}`);
+      if (wasEditing) {
+        const removedText = data.removed ? `, removed ${data.removed}` : '';
+        alert(`Updated ${data.updated} episode${data.updated === 1 ? '' : 's'}${removedText}`);
+      } else {
+        alert(`Added ${data.added} episode${data.added === 1 ? '' : 's'}`);
+      }
     } catch (error) {
       alert('Series upload failed');
     } finally {
@@ -460,4 +538,40 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function parseSeasonNumber(value) {
+  const text = String(value || '');
+  const sxe = text.match(/\bs(?:eason)?\s*0*(\d+)\s*(?:e|ep|episode)\s*0*(\d+)\b/i);
+  if (sxe) return normalizeSeasonNumber(sxe[1]);
+  const xFormat = text.match(/\b0*(\d+)\s*x\s*0*(\d+)\b/i);
+  if (xFormat) return normalizeSeasonNumber(xFormat[1]);
+  const season = text.match(/\bseason\s*0*(\d+)\b/i);
+  return season ? normalizeSeasonNumber(season[1]) : 1;
+}
+
+function parseEpisodeNumber(value) {
+  const text = String(value || '');
+  const sxe = text.match(/\bs(?:eason)?\s*0*(\d+)\s*(?:e|ep|episode)\s*0*(\d+)\b/i);
+  if (sxe) return Number(sxe[2]);
+  const episode = text.match(/\b(?:episode|ep|e)\s*0*(\d+)\b/i);
+  if (episode) return Number(episode[1]);
+  const numbers = [...text.matchAll(/\b0*(\d+)\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((number) => number < 1900 || number > 2099);
+  return numbers.length ? numbers[numbers.length - 1] : Number.MAX_SAFE_INTEGER;
+}
+
+function normalizeSeasonNumber(value) {
+  const season = Number(value);
+  return Number.isFinite(season) && season > 0 ? season : 1;
+}
+
+function compareEpisodeLabels(a, b) {
+  const aLabel = a.episode_label || a.title || '';
+  const bLabel = b.episode_label || b.title || '';
+  const aSeason = parseSeasonNumber(aLabel);
+  const bSeason = parseSeasonNumber(bLabel);
+  if (aSeason !== bSeason) return aSeason - bSeason;
+  return parseEpisodeNumber(aLabel) - parseEpisodeNumber(bLabel);
 }

@@ -1076,6 +1076,113 @@ app.post('/api/admin/series/batch', requireAdminApi, async (req, res) => {
   }
 });
 
+app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
+  const originalSeriesTitle = String(req.body.original_series_title || '').trim();
+  const nextSeriesTitle = String(req.body.series_title || '').trim();
+  const description = String(req.body.description || '').trim();
+  const episodes = Array.isArray(req.body.episodes) ? req.body.episodes : [];
+
+  if (!originalSeriesTitle) return res.status(400).json({ ok: false, error: 'Original series name is required' });
+  if (!nextSeriesTitle) return res.status(400).json({ ok: false, error: 'Series name is required' });
+
+  const validEpisodes = episodes
+    .map((episode) => ({
+      key: String(episode && episode.key ? episode.key : '').trim(),
+      label: String(episode && episode.label ? episode.label : '').trim(),
+      url: String(episode && episode.url ? episode.url : '').trim()
+    }))
+    .filter((episode) => episode.label && episode.url);
+
+  if (!validEpisodes.length) {
+    return res.status(400).json({ ok: false, error: 'Add at least one episode label and link' });
+  }
+
+  const duplicateInRequest = validEpisodes.find((episode, index) => validEpisodes.some((item, itemIndex) => itemIndex !== index && item.url === episode.url));
+  if (duplicateInRequest) {
+    return res.status(409).json({ ok: false, error: `Duplicate episode link in this update: ${duplicateInRequest.url}` });
+  }
+
+  const originalEpisodes = movies.filter((movie) => movie.series_title === originalSeriesTitle);
+  if (!originalEpisodes.length) {
+    return res.status(404).json({ ok: false, error: 'Series not found' });
+  }
+
+  const snapshots = new Map(originalEpisodes.map((movie) => [movie, { ...movie }]));
+  const originalKeys = new Map(originalEpisodes.map((movie) => [movie, getMovieKey(movie)]));
+  const addedMovies = [];
+  const removedMovies = [];
+
+  try {
+    for (const episode of validEpisodes) {
+      const existing = episode.key
+        ? movies.find((movie) => getMovieKey(movie) === episode.key)
+        : null;
+
+      if (existing) {
+        const conflicting = movies.find((movie) => movie !== existing && movie.url === episode.url);
+        if (conflicting) {
+          const conflictError = new Error(`Another item already uses this link: ${episode.url}`);
+          conflictError.status = 409;
+          throw conflictError;
+        }
+
+        existing.title = `${nextSeriesTitle} ${episode.label}`;
+        existing.description = description;
+        existing.url = episode.url;
+        existing.id = existing.id || null;
+        existing.series_title = nextSeriesTitle;
+        existing.episode_label = episode.label;
+        existing.search_only = isSearchOnlyValue(req.body.search_only);
+        existing.popular = isSearchOnlyValue(req.body.popular);
+      } else {
+        const conflicting = movies.find((movie) => movie.url === episode.url);
+        if (conflicting) {
+          const conflictError = new Error(`Another item already uses this link: ${episode.url}`);
+          conflictError.status = 409;
+          throw conflictError;
+        }
+
+        const movie = await buildExternalMovieFromUrl(episode.url, {
+          title: `${nextSeriesTitle} ${episode.label}`,
+          description,
+          search_only: req.body.search_only,
+          popular: req.body.popular,
+          series_title: nextSeriesTitle,
+          episode_label: episode.label
+        });
+        movies.unshift(movie);
+        addedMovies.push(movie);
+      }
+    }
+
+    const submittedKeys = new Set(validEpisodes.map((episode) => episode.key).filter(Boolean));
+    for (const movie of originalEpisodes) {
+      const key = originalKeys.get(movie);
+      if (submittedKeys.has(key)) continue;
+      const index = movies.indexOf(movie);
+      if (index === -1) continue;
+      removedMovies.push({ movie, index });
+      movies.splice(index, 1);
+    }
+
+    await saveMovies();
+    res.json({ ok: true, updated: validEpisodes.length, removed: removedMovies.length });
+  } catch (e) {
+    for (const [movie, snapshot] of snapshots.entries()) {
+      Object.assign(movie, snapshot);
+    }
+    for (const movie of addedMovies) {
+      const index = movies.indexOf(movie);
+      if (index !== -1) movies.splice(index, 1);
+    }
+    for (const { movie, index } of removedMovies.sort((a, b) => a.index - b.index)) {
+      if (!movies.includes(movie)) movies.splice(index, 0, movie);
+    }
+    console.error('series update error', e);
+    res.status(e.status || 500).json({ ok: false, error: e.status ? e.message : 'Series update failed while saving.' });
+  }
+});
+
 app.post('/api/admin/movies/visibility', requireAdminApi, async (req, res) => {
   const key = req.body.key;
   if (!key) return res.status(400).json({ ok: false, error: 'Movie key required' });
