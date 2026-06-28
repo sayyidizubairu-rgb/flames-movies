@@ -376,10 +376,11 @@ function getMoviePageHtml(movie) {
         <section class="season-holder">
           <div class="season-title"><h3>${escapeHtml(season.title)}</h3><span>${season.episodes.length} episode${season.episodes.length === 1 ? '' : 's'}</span></div>
           <div class="episode-list">${season.episodes.map((episode, index) => {
-            const episodeTitle = escapeHtml(episode.episode_label || episode.title || `Episode ${index + 1}`);
+            const episodeLabel = escapeHtml(episode.episode_label || `Episode ${index + 1}`);
+            const episodeName = episode.episode_title ? `<small>${escapeHtml(episode.episode_title)}</small>` : '';
             const episodeMeta = [episode.size, episode.quality].filter(Boolean).map(escapeHtml).join(' • ');
             const episodeUrl = escapeHtml(episode.download_url || episode.url || (episode.id ? `/download/${episode.id}` : '#'));
-            return `<a class="episode-link" href="${episodeUrl}" target="_blank" rel="noopener noreferrer"><span>${episodeTitle}</span><small>${episodeMeta}</small></a>`;
+            return `<a class="episode-link" href="${episodeUrl}" target="_blank" rel="noopener noreferrer"><span>${episodeLabel}${episodeName}</span><small>${episodeMeta}</small></a>`;
           }).join('')}</div>
         </section>
       `).join('')}</div></section>`
@@ -484,7 +485,7 @@ function getPublicPageStyles() {
     *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at top,rgba(255,77,45,.12),transparent 24%),linear-gradient(180deg,#090d14 0%,#020406 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     a{color:inherit}.page-header{padding:24px 28px;background:rgba(6,10,18,.8);border-bottom:1px solid rgba(255,255,255,.04)}.nav-inner{max-width:var(--max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand{display:flex;align-items:center;gap:14px;text-decoration:none}.brand-icon{width:46px;height:46px;border-radius:16px;object-fit:cover;box-shadow:0 10px 24px rgba(255,77,45,.22);flex:0 0 auto}.brand-title{display:grid;line-height:1.1;font-weight:800}.brand-title span{font-size:.82rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}.nav-link,.back-link{color:#ffb8a8;text-decoration:none}
-    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.season-list{display:grid;gap:16px}.season-holder{padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.season-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.season-title h3{margin:0;font-size:1.05rem}.season-title span{color:var(--muted);font-size:.82rem;font-weight:800}.episode-list{display:grid;gap:10px}.episode-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#fff;text-decoration:none;font-weight:800}.episode-link small{color:var(--muted);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
+    .detail-wrap{max-width:var(--max-width);margin:0 auto;padding:28px}.back-link{display:inline-block;margin-bottom:20px}.detail-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden}.detail-grid{display:grid;grid-template-columns:minmax(220px,360px) 1fr;gap:28px;padding:28px}.detail-poster{min-height:520px;border-radius:14px;background:#0f172a;background-size:cover;background-position:center}.detail-poster.no-poster{display:grid;place-items:center;color:var(--muted)}.detail-poster.no-poster:before{content:"Poster unavailable"}.detail-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.hero-pill{display:inline-flex;padding:9px 14px;border-radius:999px;background:rgba(255,77,45,.12);color:#ffb8a8;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.detail-copy h1{font-size:clamp(2rem,4vw,4rem);line-height:1;margin:18px 0 12px}.detail-meta{color:var(--muted);line-height:1.6}.detail-desc{color:#d8dee8;line-height:1.8;max-width:820px;margin:0}.muted{color:var(--muted)}.download-large{display:inline-flex;margin-top:12px;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#111;text-decoration:none;font-weight:900}.info-section,.trailer-section{padding:0 28px 28px}.info-section h2,.trailer-section h2{margin:0 0 14px}.cast-list{display:flex;flex-wrap:wrap;gap:10px}.cast-list span{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.08);font-weight:700}.season-list{display:grid;gap:16px}.season-holder{padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.season-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.season-title h3{margin:0;font-size:1.05rem}.season-title span{color:var(--muted);font-size:.82rem;font-weight:800}.episode-list{display:grid;gap:10px}.episode-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#fff;text-decoration:none;font-weight:800}.episode-link span{display:grid;gap:3px}.episode-link span small{font-size:.82rem}.episode-link small{color:var(--muted);font-weight:700}.trailer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;background:#020617}.trailer-missing{min-height:260px;display:grid;place-items:center;color:var(--muted);background:#020617;border-radius:14px}
     @media(max-width:760px){.detail-grid{grid-template-columns:1fr}.detail-poster{min-height:420px}.detail-wrap{padding:18px}}
   </style>`;
 }
@@ -594,6 +595,7 @@ function normalizeMovieData(movie) {
   normalized.title = normalized.title || 'Untitled';
   if (normalized.series_title) normalized.series_title = String(normalized.series_title).trim();
   if (normalized.episode_label) normalized.episode_label = String(normalized.episode_label).trim();
+  if (normalized.episode_title) normalized.episode_title = String(normalized.episode_title).trim();
   normalized.description = normalized.description || 'No description available.';
   normalized.year = normalized.year || parseYearFromTitle(normalized.title);
   normalized.quality = normalized.quality || parseQuality(normalized.title);
@@ -681,7 +683,7 @@ function groupMoviesForPublic(list) {
       item.episodes = sortSeriesEpisodes(item.episodes);
       item.download_url = item.episodes[0] && item.episodes[0].download_url;
       item.size = `${item.episodes.length} episode${item.episodes.length === 1 ? '' : 's'}`;
-      item.tags = `${item.tags || ''} ${item.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''}`).join(' ')}`.trim();
+      item.tags = `${item.tags || ''} ${item.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''} ${episode.episode_title || ''}`).join(' ')}`.trim();
     }
   }
 
@@ -733,8 +735,10 @@ function isSearchOnlyValue(value) {
 function applySeriesFields(movie, source = {}) {
   const seriesTitle = String(source.series_title || source.seriesTitle || '').trim();
   const episodeLabel = String(source.episode_label || source.episodeLabel || '').trim();
+  const episodeTitle = String(source.episode_title || source.episodeTitle || '').trim();
   if (seriesTitle) movie.series_title = seriesTitle;
   if (episodeLabel) movie.episode_label = episodeLabel;
+  if (episodeTitle) movie.episode_title = episodeTitle;
   return movie;
 }
 
@@ -852,8 +856,8 @@ app.get('/api/movies', async (req, res) => {
   if (!q) return res.json(includeHidden ? publicList : publicList.filter((m) => !m.search_only));
   const results = publicList.filter((m) => {
     const episodeText = Array.isArray(m.episodes)
-      ? m.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''}`).join(' ')
-      : `${m.series_title || ''} ${m.episode_label || ''}`;
+      ? m.episodes.map((episode) => `${episode.title || ''} ${episode.episode_label || ''} ${episode.episode_title || ''}`).join(' ')
+      : `${m.series_title || ''} ${m.episode_label || ''} ${m.episode_title || ''}`;
     const hay = ((m.title || '') + ' ' + (m.description || '') + ' ' + (m.tags || '') + ' ' + (m.genre || '') + ' ' + (m.quality || '') + ' ' + episodeText).toLowerCase();
     return hay.includes(q);
   });
@@ -1067,7 +1071,8 @@ app.post('/api/admin/series/batch', requireAdminApi, async (req, res) => {
         search_only: req.body.search_only,
         popular: req.body.popular,
         series_title: seriesTitle,
-        episode_label: episode.label
+        episode_label: episode.label,
+        episode_title: episode.title
       });
       batch.push(movie);
     }
@@ -1093,6 +1098,7 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
     .map((episode) => ({
       key: String(episode && episode.key ? episode.key : '').trim(),
       label: String(episode && episode.label ? episode.label : '').trim(),
+      title: String(episode && episode.title ? episode.title : '').trim(),
       url: String(episode && episode.url ? episode.url : '').trim()
     }))
     .filter((episode) => episode.label && episode.url);
@@ -1130,12 +1136,14 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
           throw conflictError;
         }
 
-        existing.title = `${nextSeriesTitle} ${episode.label}`;
+        existing.title = episode.title ? `${nextSeriesTitle} ${episode.label} ${episode.title}` : `${nextSeriesTitle} ${episode.label}`;
         existing.description = description;
         existing.url = episode.url;
         existing.id = existing.id || null;
         existing.series_title = nextSeriesTitle;
         existing.episode_label = episode.label;
+        if (episode.title) existing.episode_title = episode.title;
+        else delete existing.episode_title;
         existing.search_only = isSearchOnlyValue(req.body.search_only);
         existing.popular = isSearchOnlyValue(req.body.popular);
       } else {
@@ -1147,12 +1155,13 @@ app.post('/api/admin/series/update', requireAdminApi, async (req, res) => {
         }
 
         const movie = await buildExternalMovieFromUrl(episode.url, {
-          title: `${nextSeriesTitle} ${episode.label}`,
+          title: episode.title ? `${nextSeriesTitle} ${episode.label} ${episode.title}` : `${nextSeriesTitle} ${episode.label}`,
           description,
           search_only: req.body.search_only,
           popular: req.body.popular,
           series_title: nextSeriesTitle,
-          episode_label: episode.label
+          episode_label: episode.label,
+          episode_title: episode.title
         });
         movies.unshift(movie);
         addedMovies.push(movie);

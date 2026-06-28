@@ -295,7 +295,8 @@ function startSeriesEdit(seriesName) {
       seasons.get(seasonNumber),
       episode.url || episode.download_url || '',
       episode.episode_label || '',
-      episode.key || episode.url || episode.id || episode.title || ''
+      episode.key || episode.url || episode.id || episode.title || '',
+      getStoredEpisodeTitle(episode)
     );
   }
 
@@ -398,7 +399,7 @@ function getSeasonNumber(seasonBlock) {
   return Number(seasonBlock.dataset.season || '1') || 1;
 }
 
-function addEpisodeRow(seasonBlock, url = '', label = '', key = '') {
+function addEpisodeRow(seasonBlock, url = '', label = '', key = '', title = '') {
   const rows = seasonBlock && seasonBlock.querySelector('.episode-rows');
   if (!rows) return;
   const seasonNumber = getSeasonNumber(seasonBlock);
@@ -409,6 +410,7 @@ function addEpisodeRow(seasonBlock, url = '', label = '', key = '') {
   row.innerHTML = `
     <input class="episode-key-input" type="hidden" value="${escapeAttr(key)}">
     <label>Episode label<input class="episode-label-input" type="text" value="${escapeAttr(episodeLabelValue)}" placeholder="${escapeAttr(getEpisodeLabel(seasonNumber, episodeNumber))}"></label>
+    <label>Episode title<input class="episode-title-input" type="text" value="${escapeAttr(title)}" placeholder="Optional episode title"></label>
     <label>Episode link<input class="episode-url-input" type="url" value="${escapeAttr(url)}" placeholder="https://example.com/episode-link"></label>
     <button class="remove-episode" type="button">Remove</button>
   `;
@@ -473,6 +475,7 @@ if (seriesBatchForm) {
       .map((row) => ({
         key: row.querySelector('.episode-key-input').value.trim(),
         label: row.querySelector('.episode-label-input').value.trim(),
+        title: row.querySelector('.episode-title-input').value.trim(),
         url: row.querySelector('.episode-url-input').value.trim()
       }))
       .filter((episode) => episode.label || episode.url);
@@ -574,4 +577,19 @@ function compareEpisodeLabels(a, b) {
   const bSeason = parseSeasonNumber(bLabel);
   if (aSeason !== bSeason) return aSeason - bSeason;
   return parseEpisodeNumber(aLabel) - parseEpisodeNumber(bLabel);
+}
+
+function getStoredEpisodeTitle(episode) {
+  if (episode.episode_title) return episode.episode_title;
+  const title = String(episode.title || '').trim();
+  const series = String(episode.series_title || '').trim();
+  const label = String(episode.episode_label || '').trim();
+  let cleaned = title;
+  if (series && cleaned.toLowerCase().startsWith(series.toLowerCase())) {
+    cleaned = cleaned.slice(series.length).trim();
+  }
+  if (label && cleaned.toLowerCase().startsWith(label.toLowerCase())) {
+    cleaned = cleaned.slice(label.length).trim();
+  }
+  return cleaned === title ? '' : cleaned;
 }
