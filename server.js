@@ -511,6 +511,10 @@ function parseYearFromTitle(title) {
   return match ? Number(match[0]) : undefined;
 }
 
+function getMetadataYear(movie, metadataTitle) {
+  return movie.year || parseYearFromTitle(metadataTitle) || parseYearFromTitle(movie.title);
+}
+
 function parseQuality(title) {
   const q = (title || '').toLowerCase();
   const qualities = ['8k', '4k', '2160p', '1080p', '720p', '480p', 'hd', 'sd'];
@@ -561,7 +565,7 @@ function ensureTmdbMetadata(movie) {
   if (tmdbPending.has(key)) return Promise.resolve();
   tmdbPending.add(key);
   const metadataTitle = movie.series_title || movie.title;
-  return fetchTmdbInfo(metadataTitle, movie.year, { preferType: movie.series_title ? 'tv' : 'movie' })
+  return fetchTmdbInfo(metadataTitle, getMetadataYear(movie, metadataTitle), { preferType: movie.series_title ? 'tv' : 'movie' })
     .then((info) => {
       if (!info) return;
       let updated = false;
@@ -736,7 +740,7 @@ function applySeriesFields(movie, source = {}) {
 
 async function applyTmdbMetadata(movie, options = {}) {
   const metadataTitle = movie.series_title || movie.title;
-  const info = await fetchTmdbInfo(metadataTitle, movie.year, {
+  const info = await fetchTmdbInfo(metadataTitle, getMetadataYear(movie, metadataTitle), {
     preferType: movie.series_title ? 'tv' : 'movie'
   });
   if (!info) return null;
@@ -1861,6 +1865,8 @@ function normalizeTitleForSearch(title) {
   let text = title.toString();
   text = text.replace(/\.(mkv|mp4|avi|mov|wmv|flv|webm)$/i, '');
   text = text.replace(/[._]/g, ' ');
+  text = text.replace(/[\[(]\s*(?:19|20)\d{2}\s*(?:tv\s*)?(?:series|show)?\s*[\])]/gi, ' ');
+  text = text.replace(/\b(?:tv\s*)?(?:series|show)\b/gi, ' ');
   text = text.replace(/\[(.*?)\]|\((.*?)\)/g, ' ');
   text = text.replace(/\blegend of\b/gi, ' ');
   text = text.replace(/\b(?:NaijaPrey|NaijaPrey\.com|Naija[-_ ]?Prey|www|com|net|org|info|club|movie|movies|download|downloaded|exclusive|official|1080p|720p)\b/gi, ' ');
